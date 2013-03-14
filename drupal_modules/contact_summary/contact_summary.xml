@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="iso-8859-1" ?>
+<menu>
+  <item>
+     <path>civicrm/contact/view/donations</path>
+     <page_callback>CRM_Contact_Form_Donation</page_callback> 
+     <access_arguments>access CiviCRM</access_arguments> 
+  </item>
+  <item>
+     <path>civicrm/contact/add/contribution</path>
+     <page_callback>CRM_Contact_Form_Donation::addNewRow</page_callback> 
+     <access_arguments>access CiviCRM</access_arguments> 
+  </item>
+  <item>
+     <path>civicrm/contact/add/new/contribution</path>
+     <page_callback>CRM_Contact_Form_Donation::saveContribution</page_callback> 
+     <access_arguments>access CiviCRM</access_arguments> 
+  </item>
+  <item>
+     <path>civicrm/contact/edit/contribution</path>
+     <page_callback>CRM_Contact_Form_Donation::editContribution</page_callback> 
+     <access_arguments>access CiviCRM</access_arguments> 
+  </item>
+  <item>
+     <title>Import RBC</title>
+     <path>civicrm/contribute/rbc/import</path>
+     <page_callback>CRM_Contribute_RBCImport_Controller</page_callback> 
+     <access_arguments>access direct debit</access_arguments> 
+  </item>
+  <item>
+     <path>civicrm/contact/delete/contribution</path>
+     <page_callback>CRM_Contact_Form_Donation::deleteContribution</page_callback> 
+     <access_arguments>access CiviCRM</access_arguments> 
+  </item>
+  <item>
+     <path>civicrm/contact/view/orginfo</path>
+     <page_callback>CRM_Contact_Page_PastoralCharge</page_callback> 
+     <access_arguments>access CiviCRM</access_arguments> 
+  </item>
+  <item>
+     <path>civicrm/contact/view/donation/summary</path>
+     <page_callback>CRM_Contact_Page_DonationSummary</page_callback> 
+     <access_arguments>access CiviCRM</access_arguments> 
+  </item>
+  <item>
+     <path>civicrm/contact/view/communication/summary</path>
+     <page_callback>CRM_Contact_Page_CommunicationSummary</page_callback> 
+     <access_arguments>access CiviCRM</access_arguments> 
+  </item>
+  <item>
+     <path>civicrm/contact/delete/donor</path>
+     <page_callback>CRM_Contact_Form_Donation::deleteDonor</page_callback> 
+     <access_arguments>access CiviCRM</access_arguments> 
+  </item>
+  <item>
+     <path>civicrm/contact/hold/donation</path>
+     <page_callback>CRM_Contact_Form_Donation::holdDonation</page_callback> 
+     <access_arguments>access CiviCRM</access_arguments> 
+  </item>
+  <item>
+     <path>civicrm/contact/stop/donation</path>
+     <page_callback>CRM_Contact_Form_Donation::stopDonation</page_callback> 
+     <access_arguments>access CiviCRM</access_arguments>
+  </item>
+  <item>
+     <path>civicrm/contact/active/donation</path>
+     <page_callback>CRM_Contact_Form_Donation::activeDonation</page_callback> 
+     <access_arguments>access CiviCRM</access_arguments>
+  </item>
+  <item>
+     <title>Service Charge Rates</title>
+     <path>civicrm/contribute/par/service/fees</path>
+     <page_callback>CRM_Contribute_Page_ParServiceFees</page_callback> 
+     <access_arguments>access direct debit</access_arguments> 
+  </item> 
+  <item>
+     <path>civicrm/direct_debit</path>
+     <page_callback>CRM_RBC_Form_DirectDebit</page_callback> 
+     <access_arguments>access CiviCRM</access_arguments> 
+  </item> 
+  <item>
+    <path>civicrm/direct_debit/filter</path>
+    <page_callback>CRM_RBC_Form_DirectDebit::filterContributions</page_callback> 
+    <access_arguments>access CiviCRM</access_arguments> 
+  </item>
+</menu>

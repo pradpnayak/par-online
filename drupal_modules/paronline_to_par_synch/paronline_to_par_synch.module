@@ -1,0 +1,279 @@
+<?php
+include "paronline_to_par_synch.inc";
+function paronline_to_par_synch_civicrm_post( $op, $objectName, $objectId, &$objectRef ) {
+
+  if ( $objectName == 'Relationship' ) {
+    if( $objectRef->relationship_type_id == SUPPORTER_RELATION_TYPE_ID ) {
+      $params['primary_contact_id'] = $objectRef->contact_id_a;
+      $donorQuery = "SELECT external_identifier FROM civicrm_contact WHERE id = ".$objectRef->contact_id_a;
+      $donor_id = CRM_Core_DAO::singleValueQuery( $donorQuery );
+      if ( !empty( $donor_id ) ) {
+        $result = explode( '-', $donor_id );
+        $params['external_identifier'] = $result[1];
+      } 
+
+      $ownerQuery = "SELECT external_identifier, organization_name FROM civicrm_contact WHERE id = ".$objectRef->contact_id_b;
+      $ownerData = CRM_Core_DAO::executeQuery($ownerQuery);
+      while( $ownerData->fetch() ) {
+        if ( !empty($ownerData->external_identifier) ) {
+          $result = explode( '-',$ownerData->external_identifier);
+          $params['parent_id'] = $result[1];
+        }
+        
+        if ( !empty($ownerData->organization_name) ) {
+          $params['organization_name'] = addslashes( $ownerData->organization_name );
+        }
+      } 
+
+      $query = "SELECT log_id FROM civicrm_log_par_donor WHERE primary_contact_id = ".$objectRef->contact_id_a;
+      $log_id = CRM_Core_DAO::singleValueQuery($query);
+      if ( !empty($log_id) ) {
+        make_entry_in_par_log('Update', $params );
+      } else {
+        make_entry_in_par_log('Insert', $params );
+      }
+    }
+  }
+  
+  if ( $objectName == 'Contribution' ) {
+    $query = "SELECT external_identifier FROM civicrm_contact WHERE id = ".$objectRef->contact_id;
+    $external_identifier = CRM_Core_DAO::singleValueQuery( $query );
+    if ( !empty( $external_identifier ) ) {
+      $result = explode( '-',$external_identifier );
+      $params['external_identifier'] = $result[1];
+    } 
+        
+    $params['primary_contact_id'] = $objectRef->contact_id;
+    $query = "SELECT name FROM civicrm_contribution_type WHERE id = ".$objectRef->contribution_type_id;
+
+    $line_items = explode(CRM_Core_DAO::VALUE_SEPARATOR, $objectRef->amount_level);
+    unset($line_items[0]);
+    end($line_items);        
+    $key = key($line_items);
+    unset($line_items[$key]);
+    
+    $fundType = $amount = null;
+    foreach( $line_items as $key => $val ) {
+      $amountLevel = explode(" -", $val);
+      $fundType = $amountLevel[0];
+      $amount   = $amountLevel[1];
+      
+      if ( $fundType == 'General' ) {
+        $params['general_amount'] = $amount;
+      } else if ( $fundType == 'M&S' ) {
+        $params['`m&s_amount`'] = $amount;
+      } else if ( $fundType == 'Other' ) {
+        $params['other_amount'] = $amount;
+      }
+    }
+    make_entry_in_par_log( 'Update', $params );
+  }
+  
+  if ( $objectName == 'Individual' && $op != 'delete' && $op != 'view' ) {
+    $query = "SELECT external_identifier FROM civicrm_contact WHERE id = ".$objectRef->id;
+    $name = null;
+    $name[trim($objectRef->last_name)][trim($objectRef->first_name)] = trim($objectRef->first_name);
+    $external_identifier = CRM_Core_DAO::singleValueQuery($query);
+    if ( !empty( $external_identifier) ) {
+      $result = explode( '-',$external_identifier);
+      $query = "SELECT par_donor_name FROM civicrm_log_par_donor WHERE external_identifier = ".$result[1];
+      $donor_name = CRM_Core_DAO::singleValueQuery($query);
+      if( !empty($donor_name)) {
+        $val = explode( ';' , $donor_name );
+        foreach ( $val  as $key => $value ) {
+          $lastnames = explode( ',', $value );
+          $firstnames = explode( '&', $lastnames[1] );
+          foreach ( $firstnames as $first_name ) {
+            $name[trim($lastnames[0])][trim($first_name)] = trim($first_name);
+          }
+        }
+      }
+      $params['external_identifier'] = $result[1];
+    } 
+    $params['primary_contact_id'] = $objectRef->id;
+    $params['par_donor_name'] = null;
+    foreach( $name as $key => $value ) {
+      if ( !empty($params['par_donor_name'])) {
+        $params['par_donor_name'] = $params['par_donor_name'].";".$key.", ".implode( ' & ' ,  $value );
+      } else {
+        $params['par_donor_name'] = $key.", ".implode( ' & ' ,  $value );
+      }
+    }
+        
+    $params['par_donor_name']  = ltrim( $params['par_donor_name'], ";" );
+    if( !empty( $objectRef->address ) ) {
+      if ( !empty( $objectRef->address[0]->street_address ) && $objectRef->address[0]->street_address != 'null' ) {
+        $params['street_address'] = $objectRef->address[0]->street_address;
+      }
+      if ( !empty( $objectRef->address[0]->city ) && $objectRef->address[0]->city != 'null' ) {
+        $params['city'] = $objectRef->address[0]->city;
+      }
+      if ( !empty( $objectRef->address[0]->postal_code) && $objectRef->address[0]->postal_code != 'null' ) {
+        $params['postal_code'] = $objectRef->address[0]->postal_code;
+      }
+      if ( !empty( $objectRef->address[0]->country) && $objectRef->address[0]->country != 'null' ) {
+        $query = "SELECT name FROM civicrm_country WHERE id = ".$objectRef->address[0]->country;
+        $country_name = CRM_Core_DAO::singleValueQuery($query);
+        $params['country'] = $country_name;
+      }
+    }
+    if( !empty( $objectRef->email ) ) {
+      if ( !empty( $objectRef->email[0]->email) && $objectRef->email[0]->email != 'null' ) {
+        $params['email'] = $objectRef->email[0]->email;
+      }
+    }
+    if ( $op == 'edit' ) {
+      make_entry_in_par_log('Update', $params );
+    } else if ( $op == 'create' ) {
+      $query = "SELECT log_id FROM civicrm_log_par_donor WHERE primary_contact_id =".$objectRef->id;
+      $log_id = CRM_Core_DAO::singleValueQuery($query);
+      if ( !empty($log_id) ) {
+        make_entry_in_par_log( 'Update', $params );
+      } else {
+        make_entry_in_par_log( 'Insert', $params );
+      }
+    }
+  }
+  
+  if ( $objectName == 'Individual' && $op == 'delete' ) {
+    $query = "SELECT external_identifier FROM civicrm_contact WHERE id = ".$objectRef->id;
+    $external_identifier = CRM_Core_DAO::singleValueQuery($query);
+    if ( !empty( $external_identifier) ) {
+      $result = explode( '-',$external_identifier);
+      $params['external_identifier'] = $result[1];
+    } 
+    $params['primary_contact_id'] = $objectRef->id;
+    make_entry_in_par_log( 'Delete', $params );
+  }
+}
+
+
+function paronline_to_par_synch_civicrm_custom( $op, $groupID, $entityID, &$params ) {
+  if ( $groupID == '13' ) {
+    if ( $op == 'create' || $op == 'edit' ) {
+      $query = "SELECT external_identifier FROM civicrm_contact where id = ".$entityID;
+      $external_identifier = CRM_Core_DAO::singleValueQuery($query);
+      if ( !empty( $external_identifier) ) {
+        $result = explode( '-',$external_identifier);
+        $details['external_identifier'] = $result[1];
+      } 
+      $details['primary_contact_id']  = $entityID;
+            
+      foreach ( $params as $key => $value ) {
+        if ( $value['entity_table'] = 'civicrm_contact' && $value['table_name'] = 'civicrm_value_envelope_13'  ) {
+          if ( $value['column_name'] == 'envelope_number_40' ) {
+            $details['par_donor_envelope'] = $value['value'];
+          }
+        }
+      }
+    } 
+    
+    if ( $op == 'create' || $op == 'edit' ) {
+      $query = "SELECT log_id FROM civicrm_log_par_donor WHERE primary_contact_id = ".$entityID;
+      $log_id = CRM_Core_DAO::singleValueQuery($query);
+      if ( !empty($log_id) ) {
+        make_entry_in_par_log('Update', $details );
+      } else {
+        make_entry_in_par_log('Insert', $details );
+      }
+    }
+  } 
+
+  if ( $groupID == '7' ) {
+    if ( $op == 'create' || $op == 'edit' ) {
+      $query = "SELECT external_identifier FROM civicrm_contact where id = ".$entityID;
+      $external_identifier = CRM_Core_DAO::singleValueQuery($query);
+      if ( !empty( $external_identifier) ) {
+        $result = explode( '-',$external_identifier);
+        $details['external_identifier'] = $result[1];
+      } 
+      $details['primary_contact_id']  = $entityID;
+            
+      foreach ( $params as $key => $value ) {
+        if ( $value['entity_table'] = 'civicrm_contact' && $value['table_name'] = 'civicrm_value_other_details_7'  ) {
+          if ( $value['column_name'] == 'ms_number_16' ) {
+            $details['ms_number'] = $value['value'];
+          }
+        }
+      }
+    } 
+    
+    if ( $op == 'create' || $op == 'edit' ) {
+      $query = "SELECT log_id FROM civicrm_log_par_donor WHERE primary_contact_id = ".$entityID;
+      $log_id = CRM_Core_DAO::singleValueQuery($query);
+      if ( !empty($log_id) ) {
+        make_entry_in_par_log('Update', $details );
+      } else {
+        make_entry_in_par_log('Insert', $details );
+      }
+    }
+  } 
+
+  if ( $groupID == '2' ) {
+    if ( $op == 'create' || $op == 'edit' ) {
+      $query = "SELECT ctr.contact_id as cid, cc.external_identifier as eid FROM civicrm_contribution as ctr LEFT JOIN civicrm_contact as cc ON ctr.contact_id = cc.id WHERE ctr.id = ".$entityID;
+      $cctName = CRM_Core_DAO::executeQuery($query);
+      while( $cctName->fetch() ) {
+        $details['primary_contact_id']  = $cctName->cid;
+        if ( !empty($cctName->eid) ) {
+          $result = explode( '-',$cctName->eid);
+          $details['external_identifier'] = $result[1];
+        }
+      }
+      
+      foreach ( $params as $key => $value ) {
+        if ( $value['entity_table'] = 'civicrm_contribution' && $value['table_name'] = 'civicrm_value_account_details_2' ) {
+          if ( $value['column_name'] == 'bank_name_2' ) {
+            $details['par_donor_bank_id'] =$value['value']; 
+          }
+          if ( $value['column_name'] == 'branch_5' ) {
+            $details['par_donor_branch_id'] =$value['value']; 
+          }
+          if ( $value['column_name'] == 'account_number_4' ) {
+            $details['par_donor_account'] =$value['value']; 
+          }
+        }
+      }
+      make_entry_in_par_log('Update', $details );
+    }
+        
+    if ( $op == 'delete' ) {
+          
+    }
+  }
+
+  if ( $groupID == '12' ) {
+    if ( $op == 'create' || $op == 'edit' ) {
+      $contactQuery =  "SELECT contact_id FROM civicrm_contribution where id = ".$entityID;
+      
+      $contact_id = CRM_Core_DAO::singleValueQuery( $contactQuery );
+      $query = "SELECT external_identifier FROM civicrm_contact WHERE id = ".$contact_id;
+      $external_identifier = CRM_Core_DAO::singleValueQuery($query);
+      if ( !empty( $external_identifier) ) {
+        $result = explode( '-',$external_identifier);
+        $details['external_identifier'] = $result[1];
+      } 
+      
+      $details['primary_contact_id'] = $contact_id;
+            
+      foreach ( $params as $key => $value ) {
+        if ( $value['entity_table'] = 'civicrm_contribution' && $value['table_name'] = 'civicrm_value_nsf_12'  ) {
+          if ( $value['column_name'] == 'nsf_32' ) {
+            $details['nsf'] = $value['value'];
+          } 
+          if ( $value['column_name'] == 'removal_33' ) {
+            $details['removed'] = $value['value'];
+          }
+        }
+      }
+      
+      $query = "SELECT log_id FROM civicrm_log_par_donor WHERE primary_contact_id = ".$contact_id;
+      $log_id = CRM_Core_DAO::singleValueQuery($query);
+      if ( !empty($log_id) ) {
+        make_entry_in_par_log('Update', $details );
+      } else {
+        make_entry_in_par_log('Insert', $details );
+      }
+    } 
+  } 
+}

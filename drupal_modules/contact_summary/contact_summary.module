@@ -1,0 +1,1584 @@
+<?php
+function contact_summary_menu_alter(&$items) {
+    $items['user/register']['type'] = MENU_CALLBACK;
+    $items['user/login']['type'] = MENU_CALLBACK;
+  }
+
+function contact_summary_civicrm_customFieldOptions( $fieldID, &$options, $detailedFormat = false ) {
+    
+    if ( !in_array($fieldID, array(44, 45, 46)  ) ) {
+        return;
+    }
+    require_once 'CRM/Utils/Array.php';
+    require_once 'CRM/Contribute/DAO/ParServiceFees.php';
+    $serviceFees = new CRM_Contribute_DAO_ParServiceFees();
+    $serviceFees->find( );
+    
+    if ( CRM_Utils_Array::value( 'gid', $_GET ) ) {
+        $groupID = CRM_Utils_Array::value( 'gid', $_GET );
+    }
+    
+    if ( CRM_Utils_Array::value( 'gid', $_POST ) ) {
+        $groupID = CRM_Utils_Array::value( 'gid', $_POST );
+    }
+    
+    while( $serviceFees->fetch() ){
+        $options[$serviceFees->id] = $serviceFees->name; 
+    }
+}
+
+function contact_summary_user_login(&$edit, $account) {
+    
+    civicrm_initialize();
+    $dao = null;
+    require_once 'api/api.php';
+    require_once 'CRM/Contact/BAO/GroupContact.php';
+    $params = array( 
+                    'uf_id' => $account->uid,
+                    'version' => 3,
+                     );
+    $result = civicrm_api( 'uf_match','get',$params );
+    $query = "SELECT id FROM custom_relatedContacts WHERE contact_id = {$result['values'][$result['id']]['contact_id']}";
+    $dao    =  CRM_Core_DAO::singleValueQuery( $query );
+    if( !$dao ){
+      $getRelationParam = array( 'version'    => 3,
+                                 'contact_id' => $result['values'][$result['id']]['contact_id'] );
+      $relationResult   = civicrm_api( 'relationship','get', $getRelationParam );
+      foreach( $relationResult[ 'values' ] as $relKey => $relValue ){
+        if( $relValue[ 'relationship_type_id' ] == PAR_ADMIN_RELATION_TYPE_ID || $relValue[ 'relationship_type_id' ] == DENOMINATION_ADMIN_RELATION_TYPE_ID ){
+            putRelatedCache( array( $relValue[ 'contact_id_b' ] ), $result['values'][$result['id']]['contact_id'] );
+        }
+      }
+      getRelatedDonors( $result['values'][$result['id']]['contact_id'] ); 
+      getRelatedAdmins( $result['values'][$result['id']]['contact_id'] );
+    }
+    $sysadmins = getSysAdmins();
+    if ( in_array( $result['values'][$result['id']]['contact_id'], $sysadmins ) || CRM_Contact_BAO_GroupContact::isContactInGroup( $result['values'][$result['id']]['contact_id'], DENOMINATION_ADMIN_GROUP_ID ) || CRM_Contact_BAO_GroupContact::isContactInGroup( $result['values'][$result['id']]['contact_id'], PAR_ADMIN_GROUP_ID )) {
+        $query = "SELECT id  FROM  civicrm_dashboard_contact WHERE dashboard_id = ( SELECT id  FROM civicrm_dashboard WHERE url like '%donation/summary%' ) AND contact_id = {$result['values'][$result['id']]['contact_id']} ";
+        require_once 'CRM/Core/DAO.php';
+    
+        $dao = CRM_Core_DAO::executeQuery( $query );
+   
+        if ( !empty ( $dao->N  ) ) {
+            while ( $dao->fetch( ) ) {
+                $id = $dao->id;
+            }
+            $update =   "UPDATE civicrm_dashboard_contact SET dashboard_id = ( SELECT id  FROM civicrm_dashboard WHERE url like '%donation/summary%' ) , contact_id = {$result['values'][$result['id']]['contact_id']}, is_fullscreen = 1, is_active = 1 , weight = 1, content = NULL  WHERE id = ".$id;
+            $updateQuery = CRM_Core_DAO::executeQuery( $update );
+        } else { 
+            $insert =   "INSERT INTO civicrm_dashboard_contact ( dashboard_id, contact_id, is_fullscreen, is_active, weight, content ) VALUES ( ( SELECT id  FROM civicrm_dashboard WHERE url like '%donation/summary%' ), {$result['values'][$result['id']]['contact_id']}, 1, 1, 1, NULL )";
+            $insertQuery = CRM_Core_DAO::executeQuery( $insert );
+        }
+    
+    } 
+    
+  }
+
+function contact_summary_civicrm_searchTasks( $objectName, &$tasks ) {
+    if ( $objectName == 'contact' ) {
+        foreach ( $tasks as $key => $value ) {
+            if ( $key != 6 && $key != 8 && $key != 15 && $key != 16 ) {
+                unset( $tasks[$key] );
+            }
+        }
+    }
+}
+
+function contact_summary_civicrm_links( $op, $objectName, $objectId, &$links ) {
+    require_once 'CRM/Contact/BAO/GroupContact.php';
+    
+    if ( !empty( $links ) ) {
+        foreach ( $links as $key => $value ) {
+            // hide from all admin users, may be required for phase 2
+ 
+            // $type = explode("-&nbsp;", $value['title'] );
+            // if( !empty( $type['1'] ) ) {
+            //     if ( "{$type['1']}" == 'Denomination' ) {
+            //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
+            //     }
+            //     if (  "{$type['1']}" == 'Pastoral Charge' ) {
+            //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
+            //     }
+            //     if (  "{$type['1']}" == 'Presbytery' ) {
+            //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
+            //     }
+            //     if (  "{$type['1']}" == 'Conference' ) {
+            //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
+            //     }
+            //     if (  "{$type['1']}" == 'Congregation' ) {
+            //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
+            //     }
+            // } else  if ( $value['title'] == 'Organization' ) {
+            //     $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&reset=1");
+            // }
+            // else 
+            unset($links[$key]);
+         }
+    } 
+    
+    $sysadmins = getSysAdmins();
+    if ( in_array( $_SESSION[ 'CiviCRM' ][ 'userID' ], $sysadmins ) ) {
+        $links[20]['title'] = 'RBC Import';
+        $links[20]['url'] = CRM_Utils_System::url('civicrm/contribute/rbc/import',"reset=1");
+        $links[21]['title'] = 'RBC Export';
+        $links[21]['url'] = CRM_Utils_System::url('direct_debit',"reset=1");
+        $links[24]['title'] = 'Service Charge Rates';
+        $links[24]['url'] = CRM_Utils_System::url('civicrm/contribute/par/service/fees',"reset=1");
+        $links[25]['title'] = 'Export Donations';
+        $links[25]['url'] = CRM_Utils_System::url('civicrm/contribute/search',"reset=1");
+        $links[26]['title'] = 'Import Donations';
+        $links[26]['url'] = CRM_Utils_System::url('civicrm/contribute/import',"reset=1");
+    }
+    if ( CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], DENOMINATION_ADMIN_GROUP_ID ) ) {
+	$links[0]['title'] = 'Add New Donor / Supporter / Member';
+        $links[0]['url']   = CRM_Utils_System::url('civicrm/profile/create',"gid=13&reset=1");
+        $links[22]['title'] = 'View Donor / Supporter / Member';
+        $links[22]['url'] = CRM_Utils_System::url( 'civicrm/contact/search/custom',"reset=1&csid=16&force=1");
+    } else if ( CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], PAR_ADMIN_GROUP_ID ) ) {
+	$links[0]['title'] = 'Add New Donor / Supporter / Member';
+        $links[0]['url']   = CRM_Utils_System::url('civicrm/profile/create',"gid=13&reset=1");
+        $links[22]['title'] = 'View Donor / Supporter / Member';
+        $links[22]['url'] = CRM_Utils_System::url( 'civicrm/contact/search/custom',"reset=1&csid=18&force=1");
+    }
+        $links[23]['title'] = 'My Dashboard';
+        $links[23]['url'] = CRM_Utils_System::url( 'civicrm/dashboard',"reset=1");  
+}
+
+function contact_summary_civicrm_dashboard( $contactID, &$contentPlacement  ) {
+   require_once 'CRM/Contact/BAO/GroupContact.php';
+   $search = array();
+   if ( CRM_Contact_BAO_GroupContact::isContactInGroup( $contactID , PAR_ADMIN_GROUP_ID ) ) {
+       $search['Quick Search'] = "<div id ='quick_search'><form id='Custom' name='Custom' method='post' action=".CRM_Utils_System::url( 'civicrm/contact/search/custom',"reset=1&csid=18").">
+
+<div class='crm-block crm-form-block crm-contact-custom-search-form-block'>
+<div class='crm-accordion-wrapper crm-custom_search_form-accordion crm-accordion-open'>
+    <div class='crm-accordion-header crm-master-accordion-header'>
+      <div class='icon crm-accordion-pointer'></div>
+      Enter Search Criteria      
+    </div><!-- /.crm-accordion-header -->
+    <div class='crm-accordion-body'>
+            <table class='form-layout-compressed'>
+            	    <tbody><tr class='customHeader'>
+                                <td class='label'><label for='first_name'>First Name</label></td>
+                                            
+                                                    <td class='label'><label for='last_name'>Last Name</label></td>
+                                            
+                                                    <td class='label'><label for='email'>Primary E-mail</label></td>
+                                            
+                                	    </tr>
+ 	    <tr class='customFields'>
+	                   
+                    <td class='label'><input type='text' class='form-text' id='first_name' name='first_name'></td>
+                                            
+                                   
+                           
+                    <td class='label'><input type='text' class='form-text' id='last_name' name='last_name'></td>
+                                            
+                                   
+                           
+                    <td class='label'><input type='text' class='form-text' id='email' name='email'></td>
+                                            
+                                   
+            	    <td class='crm-submit-buttons'>
+   
+                                                                          <span class='crm-button crm-button-type-refresh crm-button_qf_Custom_refresh'><input type='submit' id='_qf_Custom_refresh-bottom' value='Search' name='_qf_Custom_refresh' class='form-submit default'></span>
+    </td>	
+ 	    </tr>
+        </tbody></table>
+        
+	
+
+    </div><!-- /.crm-accordion-body -->
+</div><!-- /.crm-accordion-wrapper -->
+</div><!-- /.crm-form-block -->
+
+
+
+
+</form></div>";
+        
+   }
+
+   $sysadmins = getSysAdmins();
+   if ( CRM_Contact_BAO_GroupContact::isContactInGroup( $contactID , DENOMINATION_ADMIN_GROUP_ID ) || in_array( $contactID , $sysadmins )) {
+       $activityParams = array( 
+                               'assignee_contact_id'  => $contactID,
+                               'status_id'            => 1,
+                               'version' => 3,
+                                );
+       $scheduleActivity = civicrm_api( 'activity','get',$activityParams );
+       if ( !empty($scheduleActivity['values'] ) ) {
+           $search['Tasks To Do'] = "<a href=".CRM_Utils_System::url( 'civicrm/report/instance/3',"reset=1").">Tasks To Do</a>";
+       }
+       $search['Quick Charge Search'] = "<div id ='quick_charge_search'> <form id='Custom' name='Custom' method='post' action=".CRM_Utils_System::url( 'civicrm/contact/search/custom',"reset=1&csid=17").">
+
+<div class='crm-block crm-form-block crm-contact-custom-search-form-block'>
+<div class='crm-accordion-wrapper crm-custom_search_form-accordion crm-accordion-open'>
+    <div class='crm-accordion-header crm-master-accordion-header'>
+      <div class='icon crm-accordion-pointer'></div>
+      Enter Search Criteria      
+    </div><!-- /.crm-accordion-header -->
+    <div class='crm-accordion-body'>
+            <table class='form-layout-compressed'>
+            	    <tbody><tr class='customHeader'>
+                                <td class='label'><label for='display_name'>Charge Name</label></td>
+                                            
+                                                    <td class='label'><label for='sort_name'>Congregation</label></td>
+
+                                                    <td class='label'><label for='first_name'>First Name</label></td>
+                                            
+                                                    <td class='label'><label for='last_name'>Last Name</label></td>
+                                            
+                                                    <td class='label'><label for='organization_name'>Denomination</label></td>
+                                            
+                                                    <td class='label'><label for='city'>City/Town</label></td>
+                                            
+                                	    </tr>
+ 	    <tr class='customFields'>
+	                   
+                    <td class='label'><input type='text' class='form-text' id='display_name' name='display_name'></td>
+                                            
+                                   
+                           
+                    <td class='label'><input type='text' class='form-text' id='sort_name' name='sort_name'></td>
+
+
+
+                    <td class='label'><input type='text' class='form-text' id='first_name' name='first_name'></td>
+                                            
+                                   
+                           
+                    <td class='label'><input type='text' class='form-text' id='last_name' name='last_name'></td>
+                                            
+                                   
+                           
+                    <td class='label'><input type='text' class='form-text' id='organization_name' name='organization_name'></td>
+                                            
+                                   
+                           
+                    <td class='label'><input type='text' class='form-text' id='city' name='city'></td>
+                                            
+                                   
+                                   
+            	    <td class='crm-submit-buttons'>
+   
+                                                                          <span class='crm-button crm-button-type-refresh crm-button_qf_Custom_refresh'><input type='submit' id='_qf_Custom_refresh-bottom' value='Search' name='_qf_Custom_refresh' class='form-submit default'></span>
+    </td>	
+ 	    </tr>
+        </tbody></table>
+        
+	
+
+    </div><!-- /.crm-accordion-body -->
+</div><!-- /.crm-accordion-wrapper -->
+</div><!-- /.crm-form-block -->
+
+
+
+
+</form></div>";
+       $search['Quick User Search'] = "<div id='quick_user_search'><form id='Custom' name='Custom' method='post' action=".CRM_Utils_System::url( 'civicrm/contact/search/custom',"reset=1&csid=16").">
+
+
+<div class='crm-block crm-form-block crm-contact-custom-search-form-block'>
+<div class='crm-accordion-wrapper crm-custom_search_form-accordion crm-accordion-open'>
+    <div class='crm-accordion-header crm-master-accordion-header'>
+      <div class='icon crm-accordion-pointer'></div>
+      Enter Search Criteria      
+    </div><!-- /.crm-accordion-header -->
+    <div class='crm-accordion-body'>
+            <table class='form-layout-compressed'>
+            	    <tbody><tr class='customHeader'>
+                                <td class='label'><label for='first_name'>First Name</label></td>
+                                            
+                                                    <td class='label'><label for='last_name'>Last Name</label></td>
+                                            
+                                                    <td class='label'><label for='external_identifier'>PAR ID</label></td>
+                                            
+                                	    </tr>
+ 	    <tr class='customFields'>
+	                   
+                    <td class='label'><input type='text' class='form-text' id='first_name' name='first_name'></td>
+                                            
+                                   
+                           
+                    <td class='label'><input type='text' class='form-text' id='last_name' name='last_name'></td>
+                                            
+                                   
+                           
+                    <td class='label'><input type='text' class='form-text' id='external_identifier' name='external_identifier'></td>
+                                            
+                                   
+            	    <td class='crm-submit-buttons'>
+   
+                                                                          <span class='crm-button crm-button-type-refresh crm-button_qf_Custom_refresh'><input type='submit' id='_qf_Custom_refresh-bottom' value='Search' name='_qf_Custom_refresh' class='form-submit default'></span>
+    </td>	
+ 	    </tr>
+        </tbody></table>
+        
+	
+
+    </div><!-- /.crm-accordion-body -->
+</div><!-- /.crm-accordion-wrapper -->
+</div><!-- /.crm-form-block -->
+
+
+
+
+</form></div>";
+   }
+    $contentPlacement = 2;
+    if ( !empty( $search ) ) {
+        return $search;
+    }
+}
+
+function contact_summary_civicrm_tabs( &$tabs, $contactID ) {
+    if( !CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], DENOMINATION_ADMIN_GROUP_ID ) && !CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], 1 ) ){
+        foreach( $tabs as $tabKey => $tabValue ){
+            if( $tabValue[ 'id' ] == 'rel' ) {
+                unset( $tabs[ $tabKey ] );
+            }
+        }
+    }
+    $addNew = CRM_Utils_Request::retrieve( 'addNew', 'Positive', $this, false );
+    $contact_type = CRM_Contact_BAO_Contact::getContactType( $contactID );
+    $contact_sub_type = CRM_Contact_BAO_Contact::getContactSubType( $contactID );
+    if ($contact_sub_type) {
+      $contact_sub_type   = $contact_sub_type[0];
+    }
+    $tabIndex = count($tabs);
+    if( $contact_type == 'Individual' ){
+        $url = CRM_Utils_System::url( 'civicrm/profile/view',
+                                      "reset=1&snippet=1&tabIndex=0&id=$contactID&gid=". CONTACT_PROFILE_ID );
+    } else {
+        if ( $contact_sub_type == 'Pastoral_Charge' ) {
+            $url = CRM_Utils_System::url( 'civicrm/profile/view',
+                                          "reset=1&snippet=1&tabIndex=0&id=$contactID&gid=". PC_PROFILE_ID  );  
+        } else if ( $contact_sub_type == 'Denomination' ) {
+            $url = CRM_Utils_System::url( 'civicrm/profile/view',
+                                          "reset=1&snippet=1&tabIndex=0&id=$contactID&gid=". DENOMINATION_PROFILE_ID  );  
+        } else if ( $contact_sub_type == 'Congregation' ) {
+            $url = CRM_Utils_System::url( 'civicrm/profile/view',
+                                          "reset=1&snippet=1&tabIndex=0&id=$contactID&gid=". CO_PROFILE_ID  );
+        } else {
+            $url = CRM_Utils_System::url( 'civicrm/profile/view',
+                                          "reset=1&snippet=1&tabIndex=0&id=$contactID&gid=". ORGANIZATION_PROFILE_ID  );
+        }
+    }
+
+    $tabs[] = array( 'id'     => 'contact-profile',
+                     'url'    => $url,
+                     'title'  => 'Contact Profile',
+                     'weight' => 0 );
+    $tabIndex = count($tabs);
+    if( CRM_Contact_BAO_Contact_Permission::allow( $contactID, CRM_Core_Permission::EDIT ) ){
+      $url = CRM_Utils_System::url( 'civicrm/contact/view/donations',
+                                      "reset=1&snippet=4&force=1&tabIndex=1&cid=$contactID&addNew=$addNew" );
+        $tabs[] = array( 'id'     => 'donation',
+                         'url'    => $url,
+                         'title'  => 'Add / Edit Donations',
+                         'weight' => 1 );
+    }
+}
+
+function contact_summary_civicrm_xmlMenu( &$files ) {
+    $files[] = dirname(__FILE__).'/contact_summary.xml';
+} 
+
+function contact_summary_civicrm_buildForm( $formName, &$form ) {
+    if ($form->getVar( '_gid' ) == ORGANIZATION_PROFILE_ID || $form->getVar( '_gid' ) == DENOMINATION_PROFILE_ID || $form->getVar( '_gid' ) == PC_PROFILE_ID || $form->getVar( '_gid' ) == CO_PROFILE_ID )  {
+        $form->add( 'hidden', "gid",  $form->getVar( '_gid' ));
+        require_once 'CRM/Contribute/DAO/ParServiceFees.php';
+        $serviceFees = new CRM_Contribute_DAO_ParServiceFees();
+        $serviceFees->find( );
+        if ( CRM_Utils_Array::value( 'gid', $_GET ) ) {
+            $groupID = CRM_Utils_Array::value( 'gid', $_GET );
+        }
+
+        if ( CRM_Utils_Array::value( 'gid', $_POST ) ) {
+            $groupID = CRM_Utils_Array::value( 'gid', $_POST );
+        }
+         $defaults = NULL;
+        while( $serviceFees->fetch() ){ 
+          
+            if ( $groupID == PC_PROFILE_ID || $groupID == CO_PROFILE_ID ) {
+                if ( $serviceFees->name == 'Non-UCC' ) {
+                    $defaults['custom_46'] = $serviceFees->id; 
+                }
+            }
+            if ( $groupID == DENOMINATION_PROFILE_ID) {
+                if ( $serviceFees->name == 'UCC Legacy' ) {
+                    $defaults['custom_44'] = $serviceFees->id;
+                }
+            }
+            if ( $groupID == DENOMINATION_PROFILE_ID) {
+                if ( $serviceFees->name == 'UCC Non-Legacy' ) {
+                    $defaults['custom_45'] = $serviceFees->id;
+                }
+            } 
+        } 
+        $form->setDefaults($defaults);
+        require_once 'CRM/Contact/BAO/Contact.php';
+        if( array_key_exists( 'cid', $_GET ) ){
+            $contact_type       = CRM_Contact_BAO_Contact::getContactSubType( $_GET[ 'cid' ] );            
+        } if( array_key_exists( 'id', $_GET ) ){ 
+            $contact_type       = CRM_Contact_BAO_Contact::getContactSubType( $_GET[ 'id' ] );
+        } else {
+            $contact_type       = CRM_Contact_BAO_Contact::getContactSubType( $_SESSION['CiviCRM']['userID'] );      
+        }
+        if( $contact_type ){
+          $contact_type = $contact_type[0];
+          $title = preg_replace ( '/_/', ' ', $contact_type);
+          $title .= "  Information";
+          CRM_Utils_System::setTitle( $title );
+        }
+    }
+    
+    if ( $formName == 'CRM_Profile_Form_Edit' ) {
+        
+        foreach ( $form->_elements as $key => $value ) {
+
+            if ( $value->_attributes['name'] == 'cancelURL' ) {
+                if ( CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], DENOMINATION_ADMIN_GROUP_ID ) ) {
+                    $form->_elements[$key]->_attributes['value'] = CRM_Utils_System::url( 'civicrm/contact/search/custom',"reset=1&csid=16&force=1");
+                   
+                }
+                else if ( CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], PAR_ADMIN_GROUP_ID ) ) {
+                    $form->_elements[$key]->_attributes['value'] = CRM_Utils_System::url( 'civicrm/contact/search/custom',"reset=1&csid=18&force=1");
+                } else  {
+                    $form->_elements[$key]->_attributes['value'] = CRM_Utils_System::url( 'civicrm/contact/view', 'reset=1&cid='.$form->getVar( '_id' ));
+                }
+            }
+        }
+    }
+    if( ($form->getVar( '_gid' ) == ORGANIZATION_PROFILE_ID || $form->getVar( '_gid' ) == DENOMINATION_PROFILE_ID || $form->getVar( '_gid' ) == PC_PROFILE_ID || $form->getVar( '_gid' ) == CO_PROFILE_ID ) && $formName == 'CRM_Profile_Form_Edit' ){
+        if ( !empty($_GET['cst'] ) ) {
+            $defaults['contact_sub_type'] = $_GET['cst'];
+            $form->setDefaults($defaults);
+        }
+    }
+
+    if( $form->getVar( '_gid' ) == CONTACT_PROFILE_ID && $formName == 'CRM_Profile_Form_Edit' ){
+        $currentUserId = $_SESSION[ 'CiviCRM' ][ 'userID' ];
+        require_once 'CRM/Contact/BAO/GroupContact.php';
+        $isParAdmin   = CRM_Contact_BAO_GroupContact::isContactInGroup( $currentUserId, PAR_ADMIN_GROUP_ID );
+        $isDenomAdmin = CRM_Contact_BAO_GroupContact::isContactInGroup( $currentUserId, DENOMINATION_ADMIN_GROUP_ID );
+        $sysadmins = getSysAdmins();
+        $isSysAdmin   = in_array( $currentUserId, $sysadmins );
+        $getRelationParam = array( 'version'     => 3,
+                                   'contact_id'  => $_SESSION[ 'CiviCRM' ][ 'userID' ] );
+        require_once 'api/api.php';
+        $result = civicrm_api( 'relationship', 'get', $getRelationParam );
+        foreach( $result['values'] as $relId => $relValue ){
+            if( $relValue['relationship_type_id'] == DENOMINATION_ADMIN_RELATION_TYPE_ID ){
+                $form->assign( 'denomination', $relValue['display_name'] );
+                $form->assign( 'denominationID', $relValue['contact_id_b'] );
+            }
+        }
+        if( $isDenomAdmin || $isSysAdmin ) {
+            $contactId = CRM_Utils_Array::value( 'id', $_GET );
+            if( !$contactId ) {
+                $contactId = $currentUserId;
+            }
+            $supporterOf = getRelation( $contactId, SUPPORTER_RELATION_TYPE_ID, true );
+            if( !empty( $supporterOf ) ){
+                $supporterOf = current( $supporterOf );
+                $supporterId = key( $supporterOf[ 'contacts' ] );
+                $supporter   = $supporterOf[ 'contacts' ][ $supporterId ];
+            } else {
+                $supporterId = null;
+                $supporter   = null;
+            }
+            $form->add( 'text', "supporter", 'Supporter Of', array( 'value' => $supporter ) );
+            $form->add( 'hidden', "supporter_id", $supporterId );
+        }
+    }
+}
+
+function contact_summary_civicrm_pageRun( &$page ) { 
+    // SUPPORTER_GROUP_ID  DENOMINATION_ADMIN_GROUP_ID
+    if( $page->getVar( '_name' ) == 'CRM_Contact_Page_View_Print' ) {
+        if ( !empty ( $_GET['cid'] ) ) {
+            $id = $_GET['cid'];
+        } else {
+            $id = $_SESSION[ 'CiviCRM' ][ 'userID' ];
+        }
+        if ( !CRM_Contact_BAO_GroupContact::isContactInGroup( $id, SYS_ADMIN_GROUP_ID ) || !CRM_Contact_BAO_GroupContact::isContactInGroup( $id, DENOMINATION_ADMIN_GROUP_ID ) ) {
+            $smarty =  CRM_Core_Smarty::singleton( );
+            foreach ( $smarty->_tpl_vars['activityTypes'] as $key => $value ) {
+                unset($smarty->_tpl_vars['activityTypes'][$key]);
+                unset($smarty->_tpl_vars['urls'][$key]);
+            }
+        }
+    }
+    
+    if( $page->getVar( '_name' ) == 'CRM_Profile_Page_Dynamic' ) {
+        require_once 'CRM/Contribute/DAO/ParServiceFees.php';
+        $serviceFees = new CRM_Contribute_DAO_ParServiceFees();
+        $serviceFees->find( );
+        while( $serviceFees->fetch() ){
+            $customFields[$serviceFees->id] = $serviceFees->name;
+        }
+        $smarty =  CRM_Core_Smarty::singleton( );
+        foreach ( $smarty->_tpl_vars['profileFields'] as $key => $value ) {
+            if ( strstr( $key, 'custom' ) ) {
+                if (strstr( $value['label'], 'audit number' ) ) {
+                    if ( !CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], SYS_ADMIN_GROUP_ID ) ) {
+                        unset($smarty->_tpl_vars['profileFields'][$key]);
+                    }
+                } else {
+                    if ( !empty($customFields[$smarty->_tpl_vars['profileFields'][$key]['value']] ) ) {
+                        $smarty->_tpl_vars['profileFields'][$key]['value'] = $customFields[$smarty->_tpl_vars['profileFields'][$key]['value']];
+                    }
+                }
+            }
+        } 
+        
+    }
+
+ if( $page->getVar( '_name' ) == 'CRM_Contact_Page_View_Summary' ) {
+     $smarty =  CRM_Core_Smarty::singleton( );
+     foreach ( $smarty->_tpl_vars['activityTypes'] as $key => $value ) {
+         // if ( $key == EXPORT_RBC_ACTIVITY_TYPE_ID || $key == IMPORT_RBC_ACTIVITY_TYPE_ID ) {
+
+            //     if ( CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], DENOMINATION_ADMIN_GROUP_ID ) ) {
+            //         if ( $key == IMPORT_RBC_ACTIVITY_TYPE_ID ) {
+            //             $smarty->_tpl_vars['urls'][$key] = CRM_Utils_System::url('civicrm/contribute/rbc/import',"reset=1");
+            //         } else {
+            //             unset($smarty->_tpl_vars['activityTypes'][$key]);
+            //             unset($smarty->_tpl_vars['urls'][$key]);
+            //         }
+            //     } else if ( CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], PAR_ADMIN_GROUP_ID ) ) {
+            //         unset($smarty->_tpl_vars['activityTypes'][$key]);
+            //         unset($smarty->_tpl_vars['urls'][$key]);
+            //     }
+            // } else {
+                unset($smarty->_tpl_vars['activityTypes'][$key]);
+                unset($smarty->_tpl_vars['urls'][$key]);
+                //  }
+        }
+
+        require_once 'CRM/Contact/BAO/Contact.php';
+        $contact_type       = CRM_Contact_BAO_Contact::getContactType( $_SESSION['CiviCRM']['view.id'] );
+        $contact_sub_type   = CRM_Contact_BAO_Contact::getContactSubType( $_SESSION['CiviCRM']['view.id'] );
+        if ($contact_sub_type) {
+          $contact_sub_type = $contact_sub_type[0];
+        }
+        if( $contact_type == 'Individual' ){
+            $param = "reset=1&gid=".CONTACT_PROFILE_ID."&id={$_SESSION['CiviCRM']['view.id']}";
+        } else {
+            if ( $contact_sub_type == 'Pastoral_Charge' ) { 
+                $param = "reset=1&gid=".PC_PROFILE_ID."&id={$_SESSION['CiviCRM']['view.id']}";
+            } else if ( $contact_sub_type == 'Denomination' ) { 
+                $param = "reset=1&gid=".DENOMINATION_PROFILE_ID."&id={$_SESSION['CiviCRM']['view.id']}";
+            } else if ( $contact_sub_type == 'Congregation' ) {
+                $param = "reset=1&gid=".CO_PROFILE_ID."&id={$_SESSION['CiviCRM']['view.id']}";
+            } else {
+                $param = "reset=1&gid=".ORGANIZATION_PROFILE_ID."&id={$_SESSION['CiviCRM']['view.id']}";
+            }
+        }
+        $smarty->_tpl_vars['param']                     = $param;
+
+        $smarty->_tpl_vars['activityTypes']['edit'] = 'Edit Contact Details';       
+        $smarty->_tpl_vars['urls']['edit'] = CRM_Utils_System::url('civicrm/profile/edit', $param);
+        $smarty->_tpl_vars['activityTypes']['donation'] = 'Add Donation';
+        $smarty->_tpl_vars['urls']['donation'] = CRM_Utils_System::url('civicrm/contact/view',"reset=1&cid=".$_SESSION['CiviCRM']['view.id']."&selectedChild=donation&addNew=1");
+        $smarty->_tpl_vars['activityTypes']['delete'] = 'Delete Contact';
+        $smarty->_tpl_vars['urls']['delete'] =  CRM_Utils_System::url('civicrm/contact/delete/donor', "reset=1&cid=".$_SESSION['CiviCRM']['view.id']);
+
+        $smarty->_tpl_vars['activityTypes']['hold'] = 'Hold All Donations for Next Cycle';
+        $smarty->_tpl_vars['urls']['hold'] =  CRM_Utils_System::url('civicrm/contact/hold/donation', "reset=1&cid=".$_SESSION['CiviCRM']['view.id']);
+
+        $smarty->_tpl_vars['activityTypes']['active'] = 'Remove Holds and Activate All Donations';
+        $smarty->_tpl_vars['urls']['active'] =  CRM_Utils_System::url('civicrm/contact/active/donation', "reset=1&cid=".$_SESSION['CiviCRM']['view.id']);
+
+        $smarty->_tpl_vars['activityTypes']['stop'] = 'Stop All Donations Permanently';
+        $smarty->_tpl_vars['urls']['stop'] =  CRM_Utils_System::url('civicrm/contact/stop/donation', "reset=1&cid=".$_SESSION['CiviCRM']['view.id']);
+        $page->assign('actionsMenuList', array() );
+    }
+ 
+ if( ( $page->getVar( '_name' ) == 'CRM_Profile_Page_Dynamic' ) && ( $page->getVar( '_gid' ) == ORGANIZATION_PROFILE_ID || $page->getVar( '_gid' ) == DENOMINATION_PROFILE_ID || $page->getVar( '_gid' ) == PC_PROFILE_ID || $page->getVar( '_gid' ) == CO_PROFILE_ID ) ) {
+      require_once 'CRM/Core/BAO/UFGroup.php';
+      $textArea = array();
+      require_once 'CRM/Contact/BAO/Contact.php';
+      if( array_key_exists( 'cid', $_GET ) ){
+        $contact_type       = CRM_Contact_BAO_Contact::getContactSubType( $_GET[ 'cid' ] );            
+      } if( array_key_exists( 'id', $_GET ) ){ 
+        $contact_type       = CRM_Contact_BAO_Contact::getContactSubType( $_GET[ 'id' ] );
+      } else {
+        $contact_type       = CRM_Contact_BAO_Contact::getContactSubType( $_SESSION['CiviCRM']['userID'] );      
+      }
+      if( $contact_type ){
+        $contact_type = $contact_type[0];
+        $title = preg_replace ( '/_/', ' ', $contact_type);
+        $title .= "  Information";
+        CRM_Utils_System::setTitle( $title );
+      }
+      $smarty =  CRM_Core_Smarty::singleton( );
+      $smarty->_tpl_vars['gid'] = $page->getVar( '_gid' );
+      $allRelations = getDenominationAdmin( $_GET[ 'id' ], true );
+      $relations = array();
+      if( $contact_type == 'Pastoral_Charge' ){ 
+          $conferences = CRM_Utils_Array::value( 'Conference', $allRelations['higher'] );
+          if( $conferences ){
+              $relations[] = array( 'cid'  => $conferences['contacts'],
+                                    'type' => 'Conference' );
+          }
+          $presb = CRM_Utils_Array::value( 'Presbytery', $allRelations['higher'] );
+          if( $presb ){
+              $relations[] = array( 'cid'  => $presb['contacts'],
+                                    'type' => 'Presbytery' );
+          }
+          $admin = CRM_Utils_Array::value( 'admin', $allRelations['lower']['Pastoral_Charge'] );
+          $relations[] = array( 'cid'  => $admin,
+                                'type' => 'Ministry Personnel' );
+          $cong = CRM_Utils_Array::value( 'Congregation', $allRelations['lower'] );
+          if( $cong ){
+              $relations[] = array( 'cid'  => $cong['contacts'],
+                                    'type' => 'Congregation' );
+          }
+          $smarty->_tpl_vars[ 'relations' ] = $relations;
+      }
+      if( $contact_type == 'Congregation' ){ 
+          $conferences = CRM_Utils_Array::value( 'Conference', $allRelations['higher'] );
+          if( $conferences ){
+              $relations[] = array( 'cid'  => $conferences['contacts'],
+                                    'type' => 'Conference' );
+          }
+          $presb = CRM_Utils_Array::value( 'Presbytery', $allRelations['higher'] );
+          if( $presb ){
+              $relations[] = array( 'cid'  => $presb['contacts'],
+                                    'type' => 'Presbytery' );
+          }
+          $pc = CRM_Utils_Array::value( 'Pastoral_Charge', $allRelations['higher'] );
+          if( $pc ){
+              $relations[] = array( 'cid'  => $pc['contacts'],
+                                    'type' => 'Pastoral Charge' );
+          }
+          $admin = CRM_Utils_Array::value( 'admin', $allRelations['lower']['Congregation'] );
+          if( !$admin ){
+              $admin = CRM_Utils_Array::value( 'admin', $allRelations['higher']['Pastoral_Charge'] );
+          }
+          $relations[] = array( 'cid'  => $admin,
+                                'type' => 'Ministry Personnel' );
+          $smarty->_tpl_vars[ 'relations' ] = $relations;
+      }
+
+      if( $contact_type == 'Presbytery' ){ 
+          $conferences = CRM_Utils_Array::value( 'Conference', $allRelations['higher'] );
+          if( $conferences ){
+              $relations[] = array( 'cid'  => $conferences['contacts'],
+                                    'type' => 'Conference' );
+          }
+          $pc = CRM_Utils_Array::value( 'Pastoral_Charge', $allRelations['lower'] );
+          if( $pc ){
+              $relations[] = array( 'cid'  => $pc['contacts'],
+                                    'type' => 'Pastoral Charge' );
+          }
+          $smarty->_tpl_vars[ 'relations' ] = $relations;
+      }
+
+      if( $contact_type == 'Conference' ){ 
+          $presb = CRM_Utils_Array::value( 'Presbytery', $allRelations['lower'] );
+          if( $presb ){
+              $relations[] = array( 'cid'  => $presb['contacts'],
+                                    'type' => 'Presbytery' );
+          }
+          $smarty->_tpl_vars[ 'relations' ] = $relations;
+      }
+
+      if( $contact_type == 'Denomination' ){ 
+          $conf = CRM_Utils_Array::value( 'Conference', $allRelations['lower'] );
+          if( $conf ){
+              $relations[] = array( 'cid'  => $conf['contacts'],
+                                    'type' => 'Conference' );
+          }
+          $smarty->_tpl_vars[ 'relations' ] = $relations;
+      }
+    } else if( $page->getVar( '_name' ) == 'CRM_Profile_Page_Dynamic' && $page->getVar( '_gid' ) == CONTACT_PROFILE_ID ) { 
+        
+        $contactId = CRM_Utils_Array::value( 'id', $_GET );
+        require_once 'api/api.php';
+        $relationGetParam = array( 'contact_id' => $contactId,
+                                   'version'    => 3 );
+        $result = civicrm_api( 'relationship', 'get', $relationGetParam );
+        $supporterOf = null;
+        $relations = array();
+        foreach( $result[ 'values' ] as $relationKey => $relationValue ){
+            if( $relationValue[ 'relationship_type_id' ] == SUPPORTER_RELATION_TYPE_ID ){
+              $contact_sub_type = CRM_Contact_BAO_Contact::getContactSubType( $relationValue[ 'contact_id_b' ] );
+              $cType         = preg_replace ( '/_/', ' ', $contact_sub_type[0] );
+              $relations[]   = array( 'name' => $relationValue[ 'display_name' ],
+                                      'cid'  => $relationValue[ 'contact_id_b' ],
+                                      'type' => $cType );
+              $supporterOfId = $relationValue[ 'contact_id_b' ];
+            }
+        }
+        $smarty =  CRM_Core_Smarty::singleton( );
+    
+        
+        if( $supporterOfId ){
+          
+          $allRelations = getDenominationAdmin( $supporterOfId, true );
+          // $count = count( $allRelations[ 'higher' ] );
+          // $no = 0;
+          // foreach ( $allRelations[ 'higher' ] as $key => $value ) {
+          //     if ( $key == 'Denomination' ) {
+          //       $smarty->_tpl_vars['rel'][ $no.'-'.$key ] = current ( $value[ 'contacts' ] );
+          //     }
+          //     if ( $key == 'Conference' ) {
+          //       $smarty->_tpl_vars['rel'][ $no.'-'.$key ] = current ( $value[ 'contacts' ] );
+          //     }
+          //     if ( $key == 'Presbytery' ) {
+          //       $smarty->_tpl_vars['rel'][ $no.'-'.$key ] = current ( $value[ 'contacts' ] );
+          //     }
+          //     if ( $key == 'Pastoral_Charge' ) {
+          //         $smarty->_tpl_vars['rel'][ $no.'-'.preg_replace ( '/_/', ' ', CRM_Contact_BAO_Contact::getContactSubType( $key ) ) ] = current ( $value[ 'contacts' ] );
+          //     }
+          //     $no ++;
+          // }
+          foreach( $allRelations[ 'higher' ] as $highKey => $highValue ){
+              if( !empty( $highValue[ 'contacts' ] ) ){
+                  $relations[] = array( 'name' => current( $highValue[ 'contacts' ] ),
+                                        'cid'  => key( $highValue[ 'contacts' ] ),
+                                        'type' => $highKey );
+              }
+          }
+          if( array_key_exists( 'Denomination', $allRelations[ 'higher' ] ) && array_key_exists( 'contacts', $allRelations[ 'higher' ]['Denomination']) ){
+            $smarty->_tpl_vars[ 'denomination' ]  =  $allRelations[ 'higher' ]['Denomination'][ 'contacts' ];
+          }
+          if( array_key_exists( 'Conference', $allRelations[ 'higher' ] ) ){
+            $smarty->_tpl_vars[ 'conference' ]    =  $allRelations[ 'higher' ]['Conference'][ 'contacts' ];
+          }
+          if( array_key_exists( 'Presbytery', $allRelations[ 'higher' ] ) ){
+            $smarty->_tpl_vars[ 'presbytery' ]    =  $allRelations[ 'higher' ]['Presbytery'][ 'contacts' ];
+          } 
+          if( array_key_exists( 'Pastoral_Charge', $allRelations[ 'higher' ] ) ){
+            $smarty->_tpl_vars[ 'pastoral_charge' ]    =  $allRelations[ 'higher' ]['Pastoral_Charge'][ 'contacts' ];
+          } 
+          $contact_sub_type = CRM_Contact_BAO_Contact::getContactSubType( $supporterOfId );
+          $smarty->_tpl_vars['supporterOfContactType']    = preg_replace ( '/_/', ' ', $contact_sub_type[0] );
+        } 
+        $smarty->_tpl_vars['supporterOf'] = $supporterOf;
+        $smarty->_tpl_vars[ 'relation' ]      = $relations;
+        $smarty->_tpl_vars[ 'relationCount' ] = count( $relations );
+    }
+}
+
+function contact_summary_civicrm_pre( $op, $objectName, $objectId, &$objectRef ) {
+
+    if( $op == 'delete' && $objectName == 'Relationship' ) {
+        $getRelationParam = array( 'version'  => 3,
+                                   'id'       => $objectId );
+        require_once 'api/api.php';
+        $result = civicrm_api( 'relationship', 'get', $getRelationParam );
+        if( $result[ 'values' ][ $objectId ][ 'relationship_type_id' ] == SUPPORTER_RELATION_TYPE_ID ){
+            $denominationAdmin = getDenominationAdmin( $result[ 'values' ][ $objectId ][ 'contact_id_b' ] );
+            $res = createActivity( NO_SUPPORTER_ACTIVITY_ID, $result[ 'values' ][ $objectId ][ 'contact_id_a'], $denominationAdmin, $result[ 'values' ][ $objectId ][ 'contact_id_b'], 'No supporter'  );
+        }
+    }
+    if( $op == 'create' && $objectName == 'Relationship' ) {
+        $relationPosted = explode( '_', $objectRef['relationship_type_id'] );
+        $relationType = array( PAR_ADMIN_RELATION_TYPE_ID, DENOMINATION_ADMIN_RELATION_TYPE_ID );
+        foreach( $relationType as $relationKey => $relationValue ) {
+            if( $relationPosted[0] == $relationValue ) {
+                if( $relationPosted[1] == 'a' ) {
+                    $relationDetails[ 'contact_id' ] = $_SESSION['CiviCRM']['view.id'];
+                } else {
+                    $relationDetails[ 'contact_id' ] = $objectRef['rel_contact_id'];
+                }
+                $relationDetails['version'] = 3;
+                require_once 'api/api.php';
+                $result = civicrm_api( 'relationship', 'get', $relationDetails);
+                foreach( $result[ 'values' ] as $resultKey => $resultValue ){
+                    if( $resultValue[ 'relationship_type_id' ] == $relationValue ){
+                        CRM_Core_Error::statusBounce( 'Individual is already a Admin' );
+                    }
+                }
+                if( $relationPosted[1] == 'a' ) {
+                    $relationDetails[ 'contact_id' ] = $objectRef[ 'rel_contact_id' ];
+                } else {
+                    $relationDetails[ 'contact_id' ] = $_SESSION['CiviCRM']['view.id'];
+                }
+                $result = civicrm_api( 'relationship', 'get', $relationDetails);
+                foreach( $result[ 'values' ] as $resultKey => $resultValue ){
+                    if( $resultValue[ 'relationship_type_id' ] == $relationValue ){
+                        if( $relationValue == PAR_ADMIN_RELATION_TYPE_ID ){
+                            $status = 'Pastoral Charge already has a Admin';
+                        } else {
+                            $status = 'Denomination already has a Admin';
+                        }
+                        CRM_Core_Error::statusBounce( $status );
+                    }
+                }
+            }
+        }
+    }
+}
+
+//clear related contact table
+function clearRelatedContact( $cid ){
+    $deleteQuery = "DELETE FROM custom_relatedContacts WHERE contact_id = {$cid}";   
+    $dao    =  CRM_Core_DAO::executeQuery( $deleteQuery );
+}
+
+
+
+//Argument passed contact id of current user
+//populates custom_relatedContacts table with all related supporters contact ids
+function getRelatedAdmins( $cid ){
+    $insertQuery = "INSERT IGNORE INTO custom_relatedContacts
+                    ( contact_id, related_id, processed ) 
+                    SELECT {$cid}, contact_id_a, 1 FROM civicrm_relationship
+                    LEFT JOIN custom_relatedContacts ON related_id = contact_id_b
+                    WHERE contact_id = {$cid} AND ( relationship_type_id = ".DENOMINATION_ADMIN_RELATION_TYPE_ID." OR relationship_type_id = ".PAR_ADMIN_RELATION_TYPE_ID." ) AND is_active = 1 AND contact_id_a != related_id";
+    $dao    =  CRM_Core_DAO::executeQuery( $insertQuery );
+}
+
+//Argument passed contact id of current user
+//populates custom_relatedContacts table with all related supporters contact ids
+function getRelatedDonors( $cid ){
+    $insertQuery = "INSERT IGNORE INTO custom_relatedContacts
+                    ( contact_id, related_id, processed ) 
+                    SELECT {$cid}, contact_id_a, 1 FROM civicrm_relationship
+                    LEFT JOIN custom_relatedContacts ON related_id = contact_id_b
+                    WHERE contact_id = {$cid} AND relationship_type_id = ".SUPPORTER_RELATION_TYPE_ID." AND is_active = 1 AND contact_id_a != related_id AND contact_id_a != {$cid}";
+    $dao    =  CRM_Core_DAO::executeQuery( $insertQuery );
+}
+
+//populates custom_relatedContacts table with all related organization contact ids
+function putRelatedCache( $cid, $currCID ){
+    if( $cid ){
+      clearRelatedContact( $currCID );
+      $flag = 0;
+      $insertQuery = "INSERT INTO custom_relatedContacts
+                    ( contact_id, related_id ) VALUES";
+      foreach( $cid as $cidKey => $cidValue ){
+        if( $currCID != $cidValue ){
+          $flag = 1;
+          $insertQuery .= " ( {$currCID}, {$cidValue} )";
+        }
+      }
+      $insertQuery .= ";";
+      if( $flag ){
+        $dao    =  CRM_Core_DAO::executeQuery( $insertQuery );
+      }
+    } else {
+      $selectQuery = "SELECT contact_id_a FROM civicrm_relationship
+                     LEFT JOIN custom_relatedContacts ON related_id = contact_id_b
+                     WHERE relationship_type_id = " . IS_PART_OF_RELATION_TYPE_ID ." AND is_active = 1 AND processed = 0";
+      $selectDao   =  CRM_Core_DAO::executeQuery( $selectQuery );
+      $insertQuery = "INSERT INTO custom_relatedContacts
+                      ( contact_id, related_id ) VALUES ";
+      $flag        = 0;
+      $rowCount    = $selectDao->N;
+      if( $selectDao->N ){
+        while( $selectDao->fetch() ){
+          if( $currCID != $selectDao->contact_id_a ){
+            $rowCount--;
+            $flag = 1;
+            $insertQuery .= " ( {$currCID}, {$selectDao->contact_id_a} )";
+            if( $rowCount != 0 ){
+              $insertQuery .= ",";
+            }
+          }
+        }
+        $insertQuery = rtrim( $insertQuery, ',' );
+        $insertQuery .= ";";
+      }
+      $updateQuery = "UPDATE custom_relatedContacts SET processed = 1 WHERE processed = 0 AND contact_id = {$currCID}";
+      $dao    =  CRM_Core_DAO::executeQuery( $updateQuery );
+      if( $selectDao->N && $flag ){
+        $dao    =  CRM_Core_DAO::executeQuery( $insertQuery );
+      }
+    }
+    //check if there are any record to be processed 
+    $checkQuery = "SELECT count(id) AS count FROM custom_relatedContacts WHERE contact_id = {$currCID} AND processed = 0";
+    $dao    =  CRM_Core_DAO::singleValueQuery( $checkQuery );
+    if( $dao ){
+      putRelatedCache( null, $currCID );
+    }
+}
+
+function getDenominationAdmin( $cid, $getAllRelation = false ) {
+  require_once 'api/api.php';
+  require_once 'CRM/Contact/BAO/Contact.php';
+  
+  $contactType = null;
+  $relation = array();
+  $allRelation = array();
+  
+  $query = "SELECT id FROM custom_relatedContacts WHERE contact_id = {$cid} ";
+  $dao   =  CRM_Core_DAO::singleValueQuery( $query );
+  if( !$dao ){
+      putRelatedCache( array( $cid ), $cid );
+  }
+  
+  $query = "SELECT related_id, display_name, contact_sub_type FROM custom_relatedContacts
+           LEFT JOIN civicrm_contact ON civicrm_contact.id = custom_relatedContacts.related_id WHERE contact_id = {$cid}";
+  $dao    =  CRM_Core_DAO::executeQuery( $query );
+ 
+  while( $dao->fetch() ){
+    if( $dao->contact_sub_type  ){
+      $allRelation[ 'lower' ][ $dao->contact_sub_type ][ 'contacts' ][ $dao->related_id ] = $dao->display_name;
+    }
+  }
+  $contactType     = CRM_Contact_BAO_Contact::getContactSubType( $cid );
+  $loopCount = 6;
+  while( $contactType[0] != 'Denomination' ){
+    $flag = 0;
+    if( $loopCount <= 1 ){
+        break;
+    }
+    $loopCount--;
+    $getRelationParam = array( 'version'     => 3,
+                               'contact_id'  => $cid );
+    $relationResult   = civicrm_api( 'Relationship', 'get', $getRelationParam );
+    foreach( $relationResult[ 'values' ] as $relationKey => $relationValue  ) {
+      if( $relationValue[ 'relationship_type_id' ] == IS_PART_OF_RELATION_TYPE_ID && $relationValue[ 'contact_id_a' ] == $cid && $relationValue[ 'is_active' ] == 1 ) {
+        $flag = 1;
+        $cid_b = $relationValue[ 'contact_id_b' ];
+        $getContactParam =  array( 'version'     => 3,
+                                   'id'          => $cid_b );
+        $contactResult   = civicrm_api( 'Contact', 'get', $getContactParam );
+        $contactType     = $contactResult[ 'values' ][ $cid_b ][ 'contact_sub_type' ];
+        $allRelation[ 'higher' ][ $contactType ][ 'contacts' ][ $cid_b ] = $relationValue['display_name'];
+        if( $getAllRelation ) {
+          if( $contactType == 'Pastoral_Charge' ){
+            $parAdmin = getRelation( $cid_b, PAR_ADMIN_RELATION_TYPE_ID, true, 'b_a' );
+            if( !empty($parAdmin) ){
+              $allRelation[ 'higher' ][ $contactType ][ 'admin' ][ key($parAdmin[ 'Individual' ][ 'contacts' ]) ] = current($parAdmin[ 'Individual' ][ 'contacts' ]);
+            }
+          }
+        }
+        $cid = $cid_b;
+      }
+    }
+    $allRelation[ 'sys_admins' ] = getSysAdmins();
+    if( $flag == 0 && !$getAllRelation ) {
+      return getSysAdmins();
+    }
+  }
+   
+  if( $getAllRelation ){
+    $allRelation[ 'higher' ][ 'Denomination' ][ 'admin' ] = current( getRelation( $cid, DENOMINATION_ADMIN_RELATION_TYPE_ID, true ));
+    if( array_key_exists( 'contacts', $allRelation[ 'higher' ][ 'Denomination' ] )){
+      foreach( $allRelation[ 'higher' ][ 'Denomination' ][ 'contacts' ] as $denoKey => $denoValue ) {
+        $denoAdmin = getRelation( $denoKey, DENOMINATION_ADMIN_RELATION_TYPE_ID, true, 'b_a' );
+        $allRelation[ 'higher' ][ 'Denomination' ][ 'admin' ][ key( $denoAdmin[ 'Individual' ][ 'contacts' ] ) ] = current( $denoAdmin[ 'Individual' ][ 'contacts' ] );
+      }
+    }
+    if( array_key_exists( 'lower', $allRelation ) && array_key_exists( 'Congregation', $allRelation[ 'lower' ] ) && $allRelation[ 'lower' ][ 'Congregation' ][ 'contacts' ] ) {
+        foreach( $allRelation[ 'lower' ][ 'Congregation' ][ 'contacts' ] as $congKey => $congValue ){
+            $admins = getRelation( $congKey, PAR_ADMIN_RELATION_TYPE_ID, true, 'b_a' );
+            if( !empty( $admins )  ) {
+                $admins = current(current($admins));
+                $allRelation[ 'lower' ][ 'Congregation' ][ 'admin' ][ key($admins) ] = $admins[ key($admins) ];
+            }
+        }
+    }
+    if( array_key_exists( 'lower', $allRelation ) && array_key_exists( 'Pastoral_Charge', $allRelation[ 'lower' ] ) && $allRelation[ 'lower' ][ 'Pastoral_Charge' ][ 'contacts' ] ) {
+        foreach( $allRelation[ 'lower' ][ 'Pastoral_Charge' ][ 'contacts' ] as $congKey => $congValue ){
+            $admins = getRelation( $congKey, PAR_ADMIN_RELATION_TYPE_ID, true, 'b_a' );
+            if( !empty( $admins )  ) {
+                $admins = current(current($admins));
+                $allRelation[ 'lower' ][ 'Pastoral_Charge' ][ 'admin' ][ key($admins) ] = $admins[ key($admins) ];
+            }
+        }
+    }
+    return $allRelation;
+  }
+  $query = "SELECT custom_relatedContacts.contact_id contact_id FROM `custom_relatedContacts` 
+LEFT JOIN civicrm_contact ON civicrm_contact.id = custom_relatedContacts.contact_id
+LEFT JOIN civicrm_relationship on civicrm_relationship.contact_id_a = civicrm_contact.id
+WHERE `related_id` = 8224 and civicrm_contact.contact_type = 'Individual' and civicrm_relationship.relationship_type_id = ". DENOMINATION_ADMIN_RELATION_TYPE_ID;
+  $dao    =  CRM_Core_DAO::executeQuery( $query );
+  $denoAdmin = array();
+  while( $dao->fetch() ){
+      $denoAdmin[] =  $dao->contact_id;
+  }
+  //if no denomination admin then return sys admins
+  if( empty($denoAdmin) ){
+     $denoAdmin =  getSysAdmins();
+  }
+  return $denoAdmin;    
+}
+
+function getRelation( $cid, $relationTypeId = SUPPORTER_RELATION_TYPE_ID, $withNames = false, $type = 'a_b' ) {
+  $query = "SELECT ";
+  if( $type == 'a_b' ){
+    $query .= 'contact_id_b as rel_con ';
+  } else {
+    $query .= 'contact_id_a as rel_con  ';
+  }
+  if( $withNames ){
+    $query .= ', con.display_name name, con.contact_type, con.contact_sub_type ';
+  }
+  $query .= "FROM civicrm_relationship rel ";
+  if( $withNames ){
+    $query .= "LEFT JOIN civicrm_contact con ON ";
+    if( $type != 'a_b' ){
+      $query .= "con.id = rel.contact_id_a ";
+    } else {
+      $query .= "con.id = rel.contact_id_b ";            
+    }
+  }
+  if( $type == 'a_b' ){
+    $query .= "WHERE rel.contact_id_a = {$cid} ";
+  } else {
+    $query .= "WHERE rel.contact_id_b = {$cid} ";        
+  }
+  $query .= "AND relationship_type_id = {$relationTypeId} ";
+  $dao    =  CRM_Core_DAO::executeQuery( $query );
+  $result = array();
+  while( $dao->fetch() ){
+    if( $withNames ){
+      if( $dao->contact_sub_type ){
+        $result[ $dao->contact_sub_type ]['contacts'][ $dao->rel_con ] = $dao->name;
+      } else {
+        $result[ $dao->contact_type ]['contacts'][ $dao->rel_con ] = $dao->name;                
+      }
+    } else {
+      $result[] = $dao->rel_con;
+    }
+  }
+  return $result;
+}
+
+function getSysAdmins(){
+  $query = "SELECT contact_id FROM civicrm_group_contact WHERE group_id = ". SYS_ADMIN_GROUP_ID;
+  $dao   = CRM_Core_DAO::executeQuery( $query );
+  $contactArray  = array();
+  while( $dao->fetch() ){
+    $contactArray[] = $dao->contact_id;
+  }
+  return $contactArray;
+}
+
+function createActivity( $activityId, $sourceId, $assigneeId, $targetId, $subject, $status = 1 ){
+  require_once 'api/api.php';       
+  $activityParam = array( 'activity_type_id'    => $activityId,
+                          'source_contact_id'   => $sourceId,
+                          'assignee_contact_id' => $assigneeId,
+                          'target_contact_id'   => $targetId,
+                          'subject'             => $subject,
+                          'status_id'           => $status,
+                          'activity_date_time'  => date('YmdHis'),
+                          'version'             => 3);
+  return ( civicrm_api( 'activity', 'create', $activityParam ) );
+}
+
+function contact_summary_civicrm_enableDisable( $baoName, $id, $isActive ) {
+  if( strstr( $baoName, 'Relationship' ) && $isActive == 0 ){
+    $getRelationParam = array( 'version'  => 3,
+                               'id'       => $id );
+    require_once 'api/api.php';       
+    $relationResult = civicrm_api( 'Relationship', 'get', $getRelationParam );
+    if( $relationResult[ 'values' ][ $id ][ 'relationship_type_id' ] == PAR_ADMIN_RELATION_TYPE_ID ){
+      $denominationAdmin = getDenominationAdmin( $relationResult[ 'values' ][ $id ][ 'contact_id_b' ] );
+      createActivity( PASTORAL_CHARGE_NEEDS_ADMIN_ACTIVITY_ID, $relationResult[ 'values' ][ $id ][ 'contact_id_a' ], $denominationAdmin, $relationResult[ 'values' ][ $id ][ 'contact_id_b' ], 'Pastoral Charge needs admin' );
+    }
+    if( $relationResult[ 'values' ][ $id ][ 'relationship_type_id' ] == SUPPORTER_RELATION_TYPE_ID ){
+      $denominationAdmin = getDenominationAdmin( $relationResult[ 'values' ][ $id ][ 'contact_id_b' ] );
+      createActivity( NO_SUPPORTER_ACTIVITY_ID, $relationResult[ 'values' ][ $id ][ 'contact_id_a' ], $denominationAdmin, $relationResult[ 'values' ][ $id ][ 'contact_id_b' ], 'No Supporter' );
+    }
+    if( $relationResult[ 'values' ][ $id ][ 'relationship_type_id' ] == DENOMINATION_ADMIN_RELATION_TYPE_ID ){
+      $denominationAdmin = getDenominationAdmin( $relationResult[ 'values' ][ $id ][ 'contact_id_b' ] );
+      createActivity( DENOMINATION_NEEDS_ADMIN_ACTIVITY_ID, $relationResult[ 'values' ][ $id ][ 'contact_id_a' ], getSysAdmins(), $relationResult[ 'values' ][ $id ][ 'contact_id_b' ], 'Denomination needs admin' );
+    }
+  }
+}
+
+function contact_summary_civicrm_postProcess( $formName, &$form ){
+    if( $formName == 'CRM_Profile_Form_Edit' && ( $form->getVar( "_gid" ) == ORGANIZATION_PROFILE_ID || $form->getVar( '_gid' ) == DENOMINATION_PROFILE_ID || $form->getVar( '_gid' ) == PC_PROFILE_ID || $form->getVar( '_gid' ) == CO_PROFILE_ID ) ) {
+        
+        $session = CRM_Core_Session::singleton();
+        $session->pushUserContext( CRM_Utils_System::url( 'civicrm/contact/view/orginfo', 'resest=1&gid='.$form->getVar( "_gid" ).'&id='.$form->getVar( "_id" )) );
+    } else if( $formName == 'CRM_Profile_Form_Edit' && $form->getVar( "_gid" ) == CONTACT_PROFILE_ID ){
+        $supporter_id = CRM_Utils_Array::value( 'supporter_id', $form->_submitValues );
+        $supporter    = CRM_Utils_Array::value( 'supporter', $form->_submitValues );
+        if( !$supporter_id ) {
+            $getRelationParam = array( 'version'     => 3,
+                                       'contact_id'  => $_SESSION[ 'CiviCRM' ][ 'userID' ] );
+            require_once 'api/api.php';
+            $result = civicrm_api( 'relationship', 'get', $getRelationParam );
+            $relations = CRM_Utils_Array::value( 'values', $result );
+            if( $relations ){
+                foreach( $relations as $relationKey => $relationValue ) {
+                    if( $relationValue[ 'relationship_type_id' ] == PAR_ADMIN_RELATION_TYPE_ID ) {
+                        $createNewRelation = array( 'version'              => 3,
+                                                    'contact_id_a'         => $form->getVar( "_id" ),
+                                                    'contact_id_b'         => $relationValue[ 'contact_id_b' ],
+                                                    'relationship_type_id' => SUPPORTER_RELATION_TYPE_ID,
+                                                    'is_active'            => 1 );
+                        $result = civicrm_api( 'relationship', 'create' , $createNewRelation );
+                        break;
+                    } 
+                }  
+            }
+        }
+        if( $supporter_id ){
+            $getRelationParam = array( 'version'     => 3,
+                                       'contact_id'  => $form->getVar( "_id" ) );
+            require_once 'api/api.php';
+            $result = civicrm_api( 'relationship', 'get', $getRelationParam );
+            $relations = CRM_Utils_Array::value( 'values', $result );
+            $relationAlreadyExist = false;
+            if( $relations ){
+                foreach( $relations as $relationKey => $relationValue ) {
+                    if( $relationValue[ 'relationship_type_id' ] == SUPPORTER_RELATION_TYPE_ID ) {
+                        if( $relationValue[ 'contact_id_b' ] == $supporter_id && $relationValue[ 'is_active' ] ) {
+                            $relationAlreadyExist = true;
+                            break;
+                        } else {
+                            $disableRelationParam = array( 'version'              => 3,
+                                                           'id'                   => $relationValue[ 'id' ],
+                                                           'contact_id_a'         => $relationValue[ 'contact_id_a' ],
+                                                           'contact_id_b'         => $relationValue[ 'contact_id_b' ],
+                                                           'relationship_type_id' => $relationValue[ 'relationship_type_id' ],
+                                                           'is_active'            => 0 );
+                            $result = civicrm_api( 'relationship', 'create' , $disableRelationParam );
+                        }
+                    }
+                }
+            }
+            if( !$relationAlreadyExist ) {
+                $createNewRelation = array( 'version'              => 3,
+                                            'contact_id_a'         => $form->getVar( "_id" ),
+                                            'contact_id_b'         => $supporter_id,
+                                            'relationship_type_id' => SUPPORTER_RELATION_TYPE_ID,
+                                            'is_active'            => 1 );
+                $result = civicrm_api( 'relationship', 'create' , $createNewRelation );
+            }
+        }
+        $session = CRM_Core_Session::singleton();
+        $session->pushUserContext( CRM_Utils_System::url( 'civicrm/contact/view', 'reset=1&cid='.$form->getVar( "_id" )));
+    }
+}
+
+function updateRelationCache( $contacts, $op = 'add' ){
+  if( $op == 'add' ) {
+    $insertQuery = " INSERT INTO custom_relatedContacts ( contact_id, related_id, processed ) VALUES ";
+    $flag = 0;
+    $rowCount = count( $contacts );
+    foreach( $contacts as $key => $relatedContact ) {
+        $rowCount--;
+        $selectQuery = "SELECT count(id) FROM custom_relatedContacts WHERE contact_id = ". $relatedContact[ 'cid' ];
+        $sdao = CRM_Core_DAO::singleValueQuery( $selectQuery );
+        if( !$sdao ){
+            $getRelationParam = array( 'version'    => 3,
+                                       'contact_id' => $relatedContact[ 'cid' ]);
+            $relationResult   = civicrm_api( 'relationship','get', $getRelationParam );
+            foreach( $relationResult[ 'values' ] as $relKey => $relValue ){
+                if( $relValue[ 'relationship_type_id' ] == PAR_ADMIN_RELATION_TYPE_ID || $relValue[ 'relationship_type_id' ] == DENOMINATION_ADMIN_RELATION_TYPE_ID ){
+                    putRelatedCache( array( $relValue[ 'contact_id_b' ] ), $relatedContact[ 'cid' ] );
+                }
+            }
+            getRelatedDonors( $relatedContact[ 'cid' ] ); 
+            getRelatedAdmins( $relatedContact[ 'cid' ] );
+        }
+        $selectQuery = "SELECT id FROM custom_relatedContacts WHERE contact_id =".$relatedContact[ 'cid' ]." AND related_id =".$relatedContact[ 'relatedId' ];
+        $sdao = CRM_Core_DAO::executeQuery( $selectQuery );
+        if( $sdao->N < 1 ){
+            $flag = 1;
+            $insertQuery .= " ( {$relatedContact[ 'cid' ]}, {$relatedContact[ 'relatedId' ]}, 1 ) ";
+            if( $rowCount > 0 ){
+                $insertQuery .= ",";
+            }
+        }
+        
+    }
+    if( $flag ){
+        $insertQuery = rtrim( $insertQuery, ',' );
+        $dao = CRM_Core_DAO::executeQuery( $insertQuery );
+    }
+  } else if( $op == 'delete' ){
+    $deleteQuery = "DELETE FROM custom_relatedContacts WHERE ";
+    $rowCount = 0;
+    foreach( $contacts as $key => $relatedContact ) {
+      if( $rowCount != 0 ) {
+        $deleteQuery .=" OR ";
+      }
+      $deleteQuery .= " (contact_id = {$relatedContact[ 'cid' ]} AND related_id = {$relatedContact[ 'relatedId' ]} )";
+      $rowCount++;
+    }
+    $dao = CRM_Core_DAO::executeQuery( $deleteQuery );
+  }
+}
+
+
+
+function contact_summary_civicrm_post( $op, $objectName, $objectId, &$objectRef ) {
+    if( $objectName == 'Relationship' ) {
+        require_once 'CRM/Utils/Array.php';
+        if( $objectRef->relationship_type_id == PAR_ADMIN_RELATION_TYPE_ID || $objectRef->relationship_type_id == SUPPORTER_RELATION_TYPE_ID || $objectRef->relationship_type_id == DENOMINATION_ADMIN_RELATION_TYPE_ID ) {
+            $relatedContacts = array();
+            if( $objectRef->relationship_type_id != SUPPORTER_RELATION_TYPE_ID ){
+              $relatedContacts[] = array( 'cid'       => $objectRef->contact_id_a,
+                                          'relatedId' => $objectRef->contact_id_b );
+            }
+            $contact_type = CRM_Contact_BAO_Contact::getContactSubType( $objectRef->contact_id_b );
+            $contact_type = $contact_type[0];
+            if( $contact_type != 'Denomination' ){
+                $relationDetails = getDenominationAdmin( $objectRef->contact_id_b, true );
+                $relationDetails[ 'higher' ][ $contact_type ]['contacts'][ $objectRef->contact_id_b ] = $objectRef->contact_id_b;
+                $admin = getRelation( $objectRef->contact_id_b, PAR_ADMIN_RELATION_TYPE_ID, true, 'b_a' );
+                if( !empty( $admin ) ){
+                    $relationDetails[ 'higher' ][ $contact_type ]['admin'] = $admin['Individual']['contacts'];
+                }
+            } else {
+                $relationDetails[ 'higher' ] = array();
+                $denoAdmin   = getRelation( $objectRef->contact_id_b, DENOMINATION_ADMIN_RELATION_TYPE_ID, false, 'b_a' );
+                $relatedContacts[] = array( 'cid'       => $denoAdmin[0],
+                                            'relatedId' => $objectRef->contact_id_a );
+            }
+            foreach( $relationDetails[ 'higher' ] as $contactKey => $contactValue  ){
+              $admin = CRM_Utils_Array::value( 'admin', $contactValue );
+              if ( !empty ( $admin ) ) {             
+                foreach( $admin as $key => $value ){
+                  $relatedContacts[] = array( 'cid'       => $key,
+                                              'relatedId' => $objectRef->contact_id_a );
+                  
+                }
+              }            
+            }
+            if( $op == 'create' || ( $op == 'edit' && $objectRef->is_active == 1 ) ){
+              if( $objectRef->relationship_type_id != SUPPORTER_RELATION_TYPE_ID ){
+                $selectQuery = "SELECT id FROM custom_relatedContacts WHERE contact_id = {$objectRef->contact_id_a}";
+                $dao         =  CRM_Core_DAO::singleValueQuery( $selectQuery );
+                if( !$dao ) {
+                  putRelatedCache( array( $objectRef->contact_id_b ), $objectRef->contact_id_a );
+                }
+              }
+              updateRelationCache( $relatedContacts, 'add' );
+            } else if( $op == 'delete' || ( $op == 'edit' && $objectRef->is_active == 0 ) ){
+                clearRelatedContact($objectRef->contact_id_a);
+                updateRelationCache( $relatedContacts, 'delete' );
+            }
+          
+        } else if( $objectRef->relationship_type_id == IS_PART_OF_RELATION_TYPE_ID && $op == 'create' ){
+            $selectQuery = "SELECT id FROM custom_relatedContacts WHERE contact_id = {$objectRef->contact_id_a}";
+            $dao         =  CRM_Core_DAO::singleValueQuery( $selectQuery );
+            if( !$dao ) {
+                putRelatedCache( array( $objectRef->contact_id_b ), $objectRef->contact_id_a );
+            } else {
+                $relatedContacts[] = array( 'cid'       => $objectRef->contact_id_a,
+                                            'relatedId' => $objectRef->contact_id_b );
+                updateRelationCache( $relatedContacts, 'add' );
+            }
+        }
+    }
+    if( ($op == 'create' && $objectName == 'Relationship' && $objectRef->relationship_type_id == PAR_ADMIN_RELATION_TYPE_ID) || 
+        ( $op == 'edit' && $objectName == 'Relationship' && $objectRef->relationship_type_id == PAR_ADMIN_RELATION_TYPE_ID && $objectRef->is_active == 1 ) ) {
+        $addGroupContactParam = array( 'version'    => 3,
+                                       'contact_id' => $objectRef->contact_id_a,
+                                       'group_id'   => PAR_ADMIN_GROUP_ID );
+
+        require_once 'api/api.php';
+        $result = civicrm_api( 'group_contact', 'create', $addGroupContactParam );
+
+    } else if( ($op == 'delete' && $objectName == 'Relationship' && $objectRef->relationship_type_id == PAR_ADMIN_RELATION_TYPE_ID)|| 
+        ( $op == 'edit' && $objectName == 'Relationship' && $objectRef->relationship_type_id == PAR_ADMIN_RELATION_TYPE_ID && $objectRef->is_active == 0 )  ) {
+        $removeGroupContactParam = array( 'version'    => 3,
+                                          'contact_id' => $objectRef->contact_id_a,
+                                          'group_id'   => PAR_ADMIN_GROUP_ID );
+        require_once 'api/api.php';
+        $result = civicrm_api( 'group_contact', 'delete', $removeGroupContactParam );
+        $denominationAdmin = getDenominationAdmin( $objectRef->contact_id_b );
+        createActivity( PASTORAL_CHARGE_NEEDS_ADMIN_ACTIVITY_ID, $objectRef->contact_id_b, $denominationAdmin, $objectRef->contact_id_a, 'Pastoral Charge needs admin' );
+    }
+    if( ($op == 'create' && $objectName == 'Relationship' && $objectRef->relationship_type_id == SUPPORTER_RELATION_TYPE_ID) || 
+        ( $op == 'edit' && $objectName == 'Relationship' && $objectRef->relationship_type_id == SUPPORTER_RELATION_TYPE_ID && $objectRef->is_active == 1 ) ) {
+        $relationDetails = getDenominationAdmin( $objectRef->contact_id_b, true );
+        $relatedContacts = array();
+        if( array_key_exists( 'lower', $relationDetails ) ){
+            foreach( $relationDetails[ 'lower' ] as $lowRelId => $lowRelValue ){
+                $admins = CRM_Utils_Array::value( 'admin', $lowRelValue );
+                if( $admins ){
+                    foreach( $admins as $adminKey => $adminValue ){
+                        $relatedContacts[] = array( 'cid'       => $adminKey,
+                                                    'relatedId' => $objectRef->contact_id_a );
+                    } 
+                }
+            }
+        }
+        foreach( $relationDetails[ 'higher' ] as $lowRelId => $lowRelValue ){
+            $admins = CRM_Utils_Array::value( 'admin', $lowRelValue );
+            if( $admins ){
+                foreach( $admins as $adminKey => $adminValue ){
+                    $relatedContacts[] = array( 'cid'       => $adminKey,
+                                                'relatedId' => $objectRef->contact_id_a );
+                } 
+            }
+        }
+        if( !empty( $relatedContacts ) ){
+            updateRelationCache( $relatedContacts, 'add' );
+        }
+        $addGroupContactParam = array( 'version'    => 3,
+                                       'contact_id' => $objectRef->contact_id_a,
+                                       'group_id'   => SUPPORTER_GROUP_ID );
+        require_once 'api/api.php';
+        $result = civicrm_api( 'group_contact', 'create', $addGroupContactParam );
+    } else if( ($op == 'delete' && $objectName == 'Relationship' && $objectRef->relationship_type_id == SUPPORTER_RELATION_TYPE_ID) || 
+        ( $op == 'edit' && $objectName == 'Relationship' && $objectRef->relationship_type_id == SUPPORTER_RELATION_TYPE_ID && $objectRef->is_active == 0 ) ) {
+        $relationDetails = getDenominationAdmin( $objectRef->contact_id_b, true );
+        $relatedContacts = array();
+        if( array_key_exists( 'lower', $relationDetails ) ){
+            foreach( $relationDetails[ 'lower' ] as $lowRelId => $lowRelValue ){
+                $admins = CRM_Utils_Array::value( 'admin', $lowRelValue );
+                if( $admins ){
+                    foreach( $admins as $adminKey => $adminValue ){
+                        $relatedContacts[] = array( 'cid'       => $adminKey,
+                                                    'relatedId' => $objectRef->contact_id_a );
+                    } 
+                }
+            }
+        }
+        if( array_key_exists( 'higher', $relationDetails ) ){
+            foreach( $relationDetails[ 'higher' ] as $lowRelId => $lowRelValue ){
+                $admins = CRM_Utils_Array::value( 'admin', $lowRelValue );
+                if( $admins ){
+                    foreach( $admins as $adminKey => $adminValue ){
+                        $relatedContacts[] = array( 'cid'       => $adminKey,
+                                                    'relatedId' => $objectRef->contact_id_a );
+                    } 
+                }
+            }
+        }
+        if( !empty( $relatedContacts ) ){
+            updateRelationCache( $relatedContacts, 'delete' );
+        }
+        $removeGroupContactParam = array( 'version'    => 3,
+                                          'contact_id' => $objectRef->contact_id_a,
+                                          'group_id'   => SUPPORTER_GROUP_ID );
+        require_once 'api/api.php';
+        $result = civicrm_api( 'group_contact', 'delete', $removeGroupContactParam );
+    }
+    if( ($op == 'create' && $objectName == 'Relationship' && $objectRef->relationship_type_id == DENOMINATION_ADMIN_RELATION_TYPE_ID) || 
+        ( $op == 'edit' && $objectName == 'Relationship' && $objectRef->relationship_type_id == DENOMINATION_ADMIN_RELATION_TYPE_ID && $objectRef->is_active == 1 ) ) {
+        $addGroupContactParam = array( 'version'    => 3,
+                                       'contact_id' => $objectRef->contact_id_a,
+                                       'group_id'   => DENOMINATION_ADMIN_GROUP_ID );
+        require_once 'api/api.php';
+        $result = civicrm_api( 'group_contact', 'create', $addGroupContactParam );
+    } else if( ($op == 'delete' && $objectName == 'Relationship' && $objectRef->relationship_type_id == DENOMINATION_ADMIN_RELATION_TYPE_ID) || 
+        ( $op == 'edit' && $objectName == 'Relationship' && $objectRef->relationship_type_id == DENOMINATION_ADMIN_RELATION_TYPE_ID && $objectRef->is_active == 0 ) ) {
+        $removeGroupContactParam = array( 'version'    => 3,
+                                          'contact_id' => $objectRef->contact_id_a,
+                                          'group_id'   => DENOMINATION_ADMIN_GROUP_ID );
+        require_once 'api/api.php';
+        $result = civicrm_api( 'group_contact', 'delete', $removeGroupContactParam );
+        createActivity( DENOMINATION_ADMIN_RELATION_TYPE_ID, $objectRef->contact_id_b, getSysAdmins(), $objectRef->contact_id_a, 'Denomination needs admin' );
+    }
+}
+
+function contact_summary_civicrm_validate( $formName, &$fields, &$files, &$form ) {
+    if ( $formName == 'CRM_Profile_Form_Edit' ) {
+        if ( $form->getVar( '_gid' ) == CONTACT_PROFILE_ID ) {
+            if ( !empty ( $form->_submitValues['postal_code-Primary'] ) ) {
+                $errors = array( ); 
+                if ( $form->_submitValues['country-Primary'] == 1039 || empty( $form->_submitValues['country-Primary'] ) ) {
+                
+                    if ( !( preg_match("/[a-zA-Z][0-9][a-zA-Z][\\s][0-9][a-zA-Z][0-9]/", $form->_submitValues['postal_code-Primary'] ) &&  strlen ( $form->_submitValues['postal_code-Primary']) == 7 ) && !( preg_match("/[a-zA-Z][0-9][a-zA-Z][0-9][a-zA-Z][0-9]/", $form->_submitValues['postal_code-Primary'] ) &&  strlen ( $form->_submitValues['postal_code-Primary']) == 6 ) ) {
+                        $errors['postal_code-Primary'] = ts('Postal Code is not a valid Canadian Postal Code');
+                    } 
+                }
+                return $errors;
+            }
+        }
+        if ( $form->getVar( '_gid' ) == ORGANIZATION_PROFILE_ID || $form->getVar( '_gid' ) == DENOMINATION_PROFILE_ID || $form->getVar( '_gid' ) == PC_PROFILE_ID || $form->getVar( '_gid' ) == CO_PROFILE_ID ) { 
+            if ( !empty ( $form->_submitValues['postal_code-Primary'] ) ) {
+                $errors = array( ); 
+                if ( !( preg_match("/[a-zA-Z][0-9][a-zA-Z][\\s][0-9][a-zA-Z][0-9]/", $form->_submitValues['postal_code-Primary'] ) &&  strlen ( $form->_submitValues['postal_code-Primary']) == 7 ) && !( preg_match("/[a-zA-Z][0-9][a-zA-Z][0-9][a-zA-Z][0-9]/", $form->_submitValues['postal_code-Primary'] ) &&  strlen ( $form->_submitValues['postal_code-Primary']) == 6 ) ) {
+                    $errors['postal_code-Primary'] = ts('Postal Code is not a valid Canadian Postal Code');
+                } 
+                return $errors;
+            }
+        }
+    } 
+    
+    if( $formName == 'CRM_Contribute_Form_ContributionType' ){
+        if( array_key_exists( 'name', $form->_errors ) ){
+            require_once 'CRM/Contribute/PseudoConstant.php';
+            $contributionTypes = CRM_Contribute_PseudoConstant::contributionType();
+            if( in_array( $fields[ 'name' ], $contributionTypes ) ){
+                unset( $form->_errors[ 'name' ] );
+            }
+        }
+    }
+}
+
+
+
+function contact_summary_civicrm_aclWhereClause( $type, &$tables, &$whereTables, &$contactID, &$where ) {
+    $getRelationErrorParam = array( 'version'    => 3,
+                                    'is_active'  => 1,
+                                    'contact_id' => $contactID );
+    $relationFlag = NULL;
+    if( CRM_Core_DAO::$_nullObject ){
+      CRM_Core_DAO::$_nullObject = null;  
+    }
+    require_once 'api/api.php';
+    $result = civicrm_api( 'relationship', 'get', $getRelationErrorParam );
+    foreach( $result[ 'values' ] as $relationKey => $relationValue ) {
+      if( $relationValue[ 'relationship_type_id' ] == PAR_ADMIN_RELATION_TYPE_ID && $relationValue[ 'is_active' ] == 1 ){
+        $relationFlag = "par";
+        $adminOfCid   = $relationValue[ 'contact_id_b' ];
+      }
+      if( $relationValue[ 'relationship_type_id' ] == DENOMINATION_ADMIN_RELATION_TYPE_ID && $relationValue[ 'is_active' ] == 1 ){
+        $relationFlag = "denomination";
+        $adminOfCid   = $relationValue[ 'contact_id_b' ];
+      }        
+    }
+    $parAdminOf   = array();
+    $allRelations = array();
+    $accessTo     = array();
+    
+    if( $relationFlag == 'par' ) {
+        $parAdminOf   = getRelation( $contactID, PAR_ADMIN_RELATION_TYPE_ID );
+    } else {
+        $parAdminOf   = getRelation( $contactID, DENOMINATION_ADMIN_RELATION_TYPE_ID );
+    }
+    $tables[ 'a_relation' ] = $whereTables[ 'a_relation' ] = "LEFT JOIN custom_relatedContacts ON custom_relatedContacts.contact_id = {$contactID}";
+    if( $where ){
+        if( $type == 2 ){
+            $where .= " AND ( custom_relatedContacts.related_id = contact_a.id OR contact_a.id IN ( SELECT contact_id FROM civicrm_group_contact WHERE group_id = ". SYS_ADMIN_GROUP_ID ." OR group_id = ". DENOMINATION_ADMIN_GROUP_ID ." ) )";
+        } else {
+            $where .= " AND custom_relatedContacts.related_id = contact_a.id";
+        }
+    } else {
+        if( $type == 2 ){
+            $where = " ( custom_relatedContacts.related_id = contact_a.id OR contact_a.id IN ( SELECT contact_id FROM civicrm_group_contact WHERE group_id = ". SYS_ADMIN_GROUP_ID ." OR group_id = ". DENOMINATION_ADMIN_GROUP_ID ." ) )";
+        } else {
+            $where = " custom_relatedContacts.related_id = contact_a.id";
+        }
+    }
+}
+
+function getOrganizations( $cid, $contactSubType, $displayName ) {
+    require_once 'api/api.php';
+    require_once 'CRM/Contact/BAO/Contact.php'; 
+    $organizations = array();
+    if ( $contactSubType == 'Congregation' ) {
+        $params = array( 
+                        'contact_id_a' => $cid,
+                        'relationship_type_id' => 13,
+                        'version' => 3,
+                         );
+        $result = civicrm_api( 'relationship','get',$params );
+        if ( !empty( $result['values'])) {
+            $params = array( 
+                            'id' => $result['values'][$result['id']]['contact_id_b'],
+                            'version' => 3,
+                             );
+            $contactResult = civicrm_api( 'contact','get',$params );
+        } else {
+            $organizations['Pastoral_Charge'] = null;
+            $organizations['Conference'] = null;
+            return $organizations;
+        }
+        $organizations['Pastoral_Charge'] = $contactResult['values'][$contactResult['id']]['display_name'];
+        $organizations['Conference'] = getConference($result['values'][$result['id']]['contact_id_b']);
+        return $organizations;
+    } 
+    
+    if ( $contactSubType == 'Pastoral_Charge' ) {
+        $params = array( 
+                        'id' => $cid,
+                        'version' => 3,
+                         );
+        $contactResult = civicrm_api( 'contact','get',$params );
+        $organizations['Pastoral_Charge'] = $contactResult['values'][$contactResult['id']]['display_name'];
+        $organizations['Conference'] = getConference($cid);
+        return $organizations;
+    } 
+    if ( $contactSubType == 'Denomination' ) {
+        $organizations['Pastoral_Charge'] = null;
+        $organizations['Conference'] = null;
+        return $organizations;
+    }
+}
+
+function getConference( $cid ) {
+
+    $selectQuery = "SELECT conf_cc.id as conf_id, conf_cc.display_name as conf_name FROM civicrm_contact as cc
+                    LEFT JOIN civicrm_relationship as pres_rel ON cc.id = pres_rel.contact_id_a
+                    LEFT JOIN civicrm_contact AS pres_cc ON ( pres_cc.id = pres_rel.contact_id_b )
+                    LEFT JOIN civicrm_relationship as conf_rel ON pres_cc.id = conf_rel.contact_id_a
+                    LEFT JOIN civicrm_contact AS conf_cc ON ( conf_cc.id = conf_rel.contact_id_b )
+                    WHERE cc.id =".$cid;
+    $dao   =  CRM_Core_DAO::executeQuery( $selectQuery );
+    while ( $dao->fetch( ) ) {
+        if ( $dao->conf_name ) {
+            return $dao->conf_name;
+        } else {
+            return null;
+        }
+    }
+}
+
+function getDonationSummary( $cid ) {
+    $summary['upcoming']['amount'] = $summary['month']['amount']= $summary['year']['amount']= null;
+    $yearlyDonationsQuery = "SELECT sum( cct.line_total  ) sm, cct.label
+FROM civicrm_contribution donation
+LEFT JOIN civicrm_relationship org_supporter  ON org_supporter.contact_id_a = donation.contact_id
+LEFT JOIN civicrm_line_item cct ON cct.entity_id = donation.id
+LEFT JOIN civicrm_contact cc ON cc.id = ".$cid."
+where org_supporter.relationship_type_id = ". SUPPORTER_RELATION_TYPE_ID ."  
+      AND org_supporter.contact_id_a = ".$cid."
+      AND org_supporter.is_active = 1
+      AND YEAR( donation.receive_date ) = YEAR(NOW()) 
+      AND donation.contribution_status_id = 1
+      AND cc.is_deleted != 1
+group by cct.label";
+    $dao = CRM_Core_DAO::executeQuery( $yearlyDonationsQuery );
+    while( $dao->fetch() ){
+        $summary['year']['amount'] += $dao->sm;
+        $summary['funds'][$dao->label]  = $dao->label;
+    }
+    $todaysDay = date('d',time());
+    if( $todaysDay >= 20 ){
+        $startDate = date( 'Y-m-d', mktime( 0, 0, 0, date( 'm', time() ), 20, date( 'Y', time() ) ) );
+        $endDate   = date( 'Y-m-d',strtotime("$startDate -1 day +1 month"));
+    } else {
+        $endDate   = date( 'Y-m-d', mktime( 0, 0, 0, date( 'm', time() ), 19, date( 'Y', time() ) ) );
+        $startDate = date( 'Y-m-d',strtotime("$endDate +1 day -1 month"));
+    }
+    
+    $monthlyDonationsQuery = "SELECT sum( cct.line_total  ) sm, cct.label
+FROM civicrm_contribution donation
+LEFT JOIN civicrm_relationship org_supporter  ON org_supporter.contact_id_a = donation.contact_id
+LEFT JOIN civicrm_line_item cct ON cct.entity_id = donation.id
+LEFT JOIN civicrm_contact cc ON cc.id = ".$cid."
+where org_supporter.relationship_type_id = ". SUPPORTER_RELATION_TYPE_ID ." 
+      AND org_supporter.contact_id_a = ".$cid."
+      AND org_supporter.is_active = 1
+      AND donation.receive_date BETWEEN '$startDate' AND '$endDate'
+      AND donation.contribution_status_id = 1
+      AND cc.is_deleted != 1
+group by cct.label";
+    $dao = CRM_Core_DAO::executeQuery( $monthlyDonationsQuery );
+    while( $dao->fetch() ){
+        $summary['month']['amount'] += $dao->sm;
+        $summary['funds'][$dao->label]  = $dao->label;
+    }
+    
+    $anticipatedQuery = "SELECT sum( cct.line_total  ) sm, cct.label
+FROM civicrm_contribution donation
+LEFT JOIN civicrm_relationship org_supporter  ON org_supporter.contact_id_a = donation.contact_id
+LEFT JOIN civicrm_line_item cct ON cct.entity_id = donation.id
+LEFT JOIN civicrm_contact cc ON cc.id = ".$cid."
+where org_supporter.relationship_type_id = ". SUPPORTER_RELATION_TYPE_ID ." 
+      AND org_supporter.contact_id_a = ".$cid."
+      AND org_supporter.is_active = 1
+      AND donation.contribution_status_id = 5
+      AND cc.is_deleted != 1
+group by cct.label";
+    $dao = CRM_Core_DAO::executeQuery( $anticipatedQuery );
+    while( $dao->fetch() ){
+        $summary['upcoming']['amount'] += $dao->sm;
+        $summary['funds'][$dao->label]  = $dao->label;
+    }
+    return $summary;
+}

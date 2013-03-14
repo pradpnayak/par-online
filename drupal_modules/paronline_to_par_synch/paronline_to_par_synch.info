@@ -1,0 +1,5 @@
+name = Paronline to Par Synch
+description = Provides Paronline to Par Synch.
+version = 7.x-0.x-dev
+core = 7.x
+dependencies[] = civicrm

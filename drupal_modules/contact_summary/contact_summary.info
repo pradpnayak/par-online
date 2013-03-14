@@ -1,0 +1,5 @@
+name = CiviCRM PAR Online Contact Summary
+description = "Custom menus for PAR Online organization search"
+dependencies[] = civicrm
+version = "7.x-1.0"
+core = "7.x"
