@@ -154,7 +154,7 @@ GROUP BY cc.contact_id";
   }
  
   public function createRelationship($contactA, $contactB = NULL, $relType = NULL, $supporter = FALSE) {
-    $sql = "SELECT id FROM civicrm_relationship WHERE contact_id_a = {$contactA} AND relationship_type_id ";
+    $sql = "SELECT id FROM civicrm_relationship WHERE contact_id_a = {$contactA} AND is_active = 1 AND relationship_type_id ";
     if ($supporter) {
       $sql .= " = {$relType}";
     }
