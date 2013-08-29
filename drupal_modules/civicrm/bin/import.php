@@ -1384,11 +1384,16 @@ Class CRM_par_import {
             $setHGNULL = "SET @houseGrpID := '';\n";
             $houseGroupId = "SELECT @houseGrpID := id FROM civicrm_group_contact WHERE group_id = 3 AND contact_id = @householdId;\n";
             
-/*             if ($pardonorName) { */
-/*               $householdCreate = "INSERT INTO (contact_type, sort_name, household_name, display_name)  */
-/* VALUES ('Household', {$pardonorName}, {$pardonorName}, {$pardonorName});\n */
-/* SELECT @householdId"; */
-/*             } */
+            if ($pardonorName) {
+              $householdCreate = "INSERT INTO (contact_type, sort_name, household_name, display_name, external_identifier)
+VALUES ('Household', '{$pardonorName}', '{$pardonorName}', '{$pardonorName}', 'H-" . $row[0] ."') ON DUPLICATE KEY UPDATE sort_name = '{$pardonorName}', display_name = '{$pardonorName}', household_name = '{$pardonorName}';\n
+SELECT @householdcId := id FROM civicrm_contact WHERE external_id = 'H-" . $row[0] . "';\n
+SELECT @hcid1 := id FROM civicrm_relationship WHERE contact_id_a = @contactId AND is_active = 1 AND relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD. ");\n
+SELECT @hcid2 := id FROM civicrm_relationship WHERE contact_id_a = @householdId AND is_active = 1 AND relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD. "); 
+INSERT IGNORE INTO civicrm_relationship (id, contact_id_a, contact_id_b, relationship_type_id, start_date) VALUES
+(@hcid1, @contactId, @householdcId, " . HEAD_OF_HOUSEHOLD . "," . date('Y-m-d h:i:s') . "),
+(@hcid2, @householdId, @householdcId, " . MEMBER_OF_HOUSEHOLD . "," . date('Y-m-d h:i:s') . ");";
+            }
             $household_contact_grp = null;
             $household_contact_grp = "INSERT INTO civicrm_group_contact ( id, group_id, contact_id, status ) values ( @houseGrpID, 3,@householdId, 'Added' ) ON DUPLICATE KEY UPDATE id = @houseGrpID, contact_id = @householdId;\n";
                 
@@ -1424,6 +1429,9 @@ Class CRM_par_import {
               $insert_houshold_phone  = "INSERT INTO civicrm_phone (id, contact_id, location_type_id, is_primary, is_billing, phone, phone_type_id) values (@housePhoneId, @householdId, 5, 1, 1, '{$houshold_phone}', 1)  ON DUPLICATE KEY UPDATE id = @housePhoneId, contact_id = @householdId, phone = '{$houshold_phone}';\n" ;
             } $houshold_phone = null;
                 
+          }
+          else {
+            $householdCreate = "";
           }
           $insert_all_rows = $insert_donor.$setContNULL.$contact_id.$setGrpNULL.$groupId.$individual_contact_grp.$setRelNULL.$relID.$insert_donor_rel.$setAddNULL.$addressId.$insert_city.$setEmailNULL.$emailId.$insert_email.$setPhoneNULL.$phoneId.$insert_phone.$setMSNULL.$msId.$insert_ms_number.$setENNULL.$envelopeId.$insert_envelope.$insert_donor_houshold.$setHCNULL.$household_id.$setHGNULL.$houseGroupId.$household_contact_grp.$setHRNULL.$houseRelID.$insert_donor1_rel.$setHAddNULL.$houseAddressId.$insert_houshold_city.$setHEmailNULL.$houseEmailId.$insert_houshold_email.$setHPhoneNULL.$housePhoneId.$insert_houshold_phone.$setParNULL.$par_accountID.$insertCustom.$setLOGNULL.$logId.$insertParLog;
           
