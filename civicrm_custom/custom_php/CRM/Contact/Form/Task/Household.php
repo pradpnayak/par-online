@@ -214,7 +214,7 @@ WHERE cc.external_identifier IS NOT NULL AND cc.id = {$contactId} AND cc1.extern
         $params = array(
           'contact_id' => $houseHoldCid,
           'contact_type' => 'Household',
-          'external_identifier' => NULL,
+          'external_identifier' => '',
           'is_deleted' => 1,
           'version' => 3,
         );
@@ -230,7 +230,7 @@ WHERE cc.external_identifier IS NOT NULL AND cc.id = {$contactId} AND cc1.extern
     return $houseHoldCid;
   }
 
-  public function createHouseHoldName($query, $contactID = NULL, $externalIdentifier = NULL) {
+  public function createHouseHoldName($query, $contactID = NULL, $externalIdentifier = '') {
     if (empty($query)) {
       return FALSE;
     }
@@ -260,7 +260,7 @@ WHERE cc.external_identifier IS NOT NULL AND cc.id = {$contactId} AND cc1.extern
       'household_name' => $name,
       'sort_name' => $name,
       'display_name' => $name,
-      'external_identifier' => 'H-' . $externalIdentifier,
+      'external_identifier' => str_replace('D-', 'H-', $externalIdentifier),
       'version' => 3,
       'contact_type' => 'Household',
     );
