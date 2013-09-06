@@ -45,8 +45,7 @@ Class CRM_par_import {
     $this->pass = $this->userName[1];
     $this->userName = $this->userName[0];
     $this->flag = FALSE;
-    /* $this->localhost = '10.50.0.30'; */
-    $this->localhost = 'localhost';
+    $this->localhost = '10.50.0.30';
   }
   
   function importDonorNsfData() {
