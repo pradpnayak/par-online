@@ -1943,13 +1943,13 @@ AND cd.bank_number_11 = '{$bank_number}'";
         } else {
           $query1 = "SELECT max(uid) as id FROM {$drupalDBName}.users";
           $id = CRM_Core_DAO::singleValueQuery($query1) + 1;
-          $query3 = "SELECT name FROM {$drupalDBName}.users where name = '{$name}'";
+          $query3 = "SELECT name FROM {$drupalDBName}.users where name LIKE '{$name}%'";
           $cb2 = CRM_Core_DAO::singleValueQuery($query3);
           if ($cb2) {
-            $name = $name.'-1';
+            $name = $name . '-' .CRM_Core_DAO::singleValueQuery("SELECT IFNULL(max(SUBSTRING_INDEX(name, '{$name}-', -1)), 0) + 1 FROM {$drupalDBName}.users WHERE `name` LIKE '{$name}-%'");
           } 
         
-          $query = "INSERT INTO {$drupalDBName}.users (uid, name, pass, mail, signature_format, timezone, init, status ) VALUES ( {$id}, '{$name}', '{$password}', '{$email}', 'filtered_html', 'America/Toronto', '{$email}', 1 ) ON DUPLICATE KEY UPDATE name = name;";
+          $query = "INSERT INTO {$drupalDBName}.users (uid, name, pass, mail, signature_format, timezone, init, status ) VALUES ( {$id}, '{$name}', '{$password}', '{$email}', 'filtered_html', 'America/Toronto', '{$email}', 1 );";
           CRM_Core_DAO::executeQuery($query);
         
           $user_role = "Insert into {$drupalDBName}.users_roles (uid, rid) values( {$id}, '5') ON DUPLICATE KEY UPDATE uid = uid;";
