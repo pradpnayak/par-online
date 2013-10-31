@@ -1406,7 +1406,10 @@ INSERT IGNORE INTO civicrm_relationship (id, contact_id_a, contact_id_b, relatio
               $setHRNULL = "SET @houseRelID := '';\n";
               $houseRelID = "SELECT @houseRelID := id FROM civicrm_relationship WHERE contact_id_a = @householdId AND contact_id_b = '{$idb}' AND relationship_type_id = ".SUPPORTER_RELATION_TYPE_ID." AND is_active = 1;\n";
               
-              $insert_donor1_rel = "INSERT INTO civicrm_relationship ( id, contact_id_a, contact_id_b, relationship_type_id, is_active) values (@houseRelID, @householdId,{$idb},".SUPPORTER_RELATION_TYPE_ID.",1) ON DUPLICATE KEY UPDATE id = @houseRelID, contact_id_a = @householdId, contact_id_b = '{$idb}';\n";
+              $insert_donor1_rel = "INSERT INTO civicrm_relationship ( id, contact_id_a, contact_id_b, relationship_type_id, is_active) values (@houseRelID, @householdId,{$idb},".SUPPORTER_RELATION_TYPE_ID.",1) ON DUPLICATE KEY UPDATE id = @houseRelID, contact_id_a = @householdId, contact_id_b = '{$idb}';\n
+UPDATE civicrm_relationship 
+SET `is_active` = 0
+WHERE contact_id_a = @householdId AND relationship_type_id = " . SUPPORTER_RELATION_TYPE_ID . " AND contact_id_b != '{$idb}';\n";
             }
             $insert_houshold_city = null;
             if(!empty($houshold_street_address) || !empty($houshold_city) || !empty($houshold_province) || !empty($houshold_postal_code) ) {
