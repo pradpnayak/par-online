@@ -1319,7 +1319,10 @@ Class CRM_par_import {
               $setRelNULL = "SET @relID := '';\n";
               $relID = "SELECT @relID := id FROM civicrm_relationship WHERE contact_id_a = @contactId AND contact_id_b = '{$idb}' AND relationship_type_id = ".SUPPORTER_RELATION_TYPE_ID." AND is_active = 1;\n";
               
-              $insert_donor_rel = "INSERT INTO civicrm_relationship ( id, contact_id_a, contact_id_b, relationship_type_id, is_active) values ( @relID, @contactId, '{$idb}', ".SUPPORTER_RELATION_TYPE_ID.", 1) ON DUPLICATE KEY UPDATE id = @relID, contact_id_a = @contactId, contact_id_b = '{$idb}' ;\n";
+              $insert_donor_rel = "INSERT INTO civicrm_relationship ( id, contact_id_a, contact_id_b, relationship_type_id, is_active) values ( @relID, @contactId, '{$idb}', ".SUPPORTER_RELATION_TYPE_ID.", 1) ON DUPLICATE KEY UPDATE id = @relID, contact_id_a = @contactId, contact_id_b = '{$idb}' ;\n
+UPDATE civicrm_relationship 
+SET `is_active` = 0
+WHERE contact_id_a = @contactId AND relationship_type_id = " . SUPPORTER_RELATION_TYPE_ID . " AND contact_id_b != '{$idb}';\n";
             }
             $insertCustom = '';
             if(!empty($bank_id) || !empty($branch_id) || !empty($account_no) || !empty($bank_name)|| !empty($branch_name) ){
@@ -1403,7 +1406,10 @@ INSERT IGNORE INTO civicrm_relationship (id, contact_id_a, contact_id_b, relatio
               $setHRNULL = "SET @houseRelID := '';\n";
               $houseRelID = "SELECT @houseRelID := id FROM civicrm_relationship WHERE contact_id_a = @householdId AND contact_id_b = '{$idb}' AND relationship_type_id = ".SUPPORTER_RELATION_TYPE_ID." AND is_active = 1;\n";
               
-              $insert_donor1_rel = "INSERT INTO civicrm_relationship ( id, contact_id_a, contact_id_b, relationship_type_id, is_active) values (@houseRelID, @householdId,{$idb},".SUPPORTER_RELATION_TYPE_ID.",1) ON DUPLICATE KEY UPDATE id = @houseRelID, contact_id_a = @householdId, contact_id_b = '{$idb}';\n";
+              $insert_donor1_rel = "INSERT INTO civicrm_relationship ( id, contact_id_a, contact_id_b, relationship_type_id, is_active) values (@houseRelID, @householdId,{$idb},".SUPPORTER_RELATION_TYPE_ID.",1) ON DUPLICATE KEY UPDATE id = @houseRelID, contact_id_a = @householdId, contact_id_b = '{$idb}';\n
+UPDATE civicrm_relationship 
+SET `is_active` = 0
+WHERE contact_id_a = @householdId AND relationship_type_id = " . SUPPORTER_RELATION_TYPE_ID . " AND contact_id_b != '{$idb}';\n";
             }
             $insert_houshold_city = null;
             if(!empty($houshold_street_address) || !empty($houshold_city) || !empty($houshold_province) || !empty($houshold_postal_code) ) {
@@ -2089,7 +2095,11 @@ AND cd.bank_number_11 = '{$bank_number}'";
       die('Could not connectss: ' . mysql_error());
     }
     mysql_select_db( "$this->dbName", $con);
-    $getTable = "SELECT * FROM civicrm_log_par_donor";
+    $getTable = "SELECT  clpd.*, REPLACE(civicrm_contact.external_identifier, 'O-', '') par_donor_owner_id
+FROM civicrm_log_par_donor clpd
+LEFT JOIN civicrm_relationship cr ON cr.contact_id_a = clpd.primary_contact_id
+LEFT JOIN civicrm_contact ON civicrm_contact.id = cr.contact_id_b
+WHERE cr.is_active = 1 AND cr.relationship_type_id =" . SUPPORTER_RELATION_TYPE_ID ;
     $table  = mysql_query ( $getTable ) or die ( "Sql error : " . mysql_error( ) );
     $exportCSV  = fopen($this->parOnline2ParPath . '/' . $this->newDirectory . '/' . $this->synchFile, 'w' );
     
