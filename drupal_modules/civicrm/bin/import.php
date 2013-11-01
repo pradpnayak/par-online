@@ -1164,21 +1164,23 @@ Class CRM_par_import {
       if ( !empty( $rows[13] ) ) {
         $donor_ms_amount = $rows[13];
       } else {
-        $donor_ms_amount = null;
+        $donor_ms_amount = 0;
       }
     
       if ( !empty( $rows[14] ) ) {
         $donor_cong_amount = $rows[14];
       } else {
-        $donor_cong_amount = null;
+        $donor_cong_amount = 0;
       }
     
       if ( !empty( $rows[15] ) ) {
         $donor_other_amount = $rows[15];
       } else {
-        $donor_other_amount = null;
+        $donor_other_amount = 0;
       }
-    
+      
+      $totalAmount = $donor_other_amount + $donor_cong_amount + $donor_ms_amount;
+      $updateRecurTable = "/n UPDATE civicrm_contribution_recur SET amount = '{$totalAmount}'  WHERE contact_id = @contactId AND contribution_status_id = 5;\n";
       if ( !empty( $rows[18] ) ) {
         $donor_ms_no = $rows[18];
       } else {
@@ -1375,7 +1377,7 @@ WHERE contact_id_a = @contactId AND relationship_type_id = " . SUPPORTER_RELATIO
             $setLOGNULL = "SET @logId := '';\n";
             $logId = "SELECT @logId := log_id FROM civicrm_log_par_donor WHERE primary_contact_id = @contactId AND external_identifier = '{$extrnal_id}';\n";
             
-            $insertParLog = "INSERT INTO civicrm_log_par_donor ( log_time, log_id, log_contact, log_action, primary_contact_id, external_identifier, ms_number, par_donor_name, organization_name, street_address, city, postal_code, country, email, par_donor_envelope, parent_id, par_donor_bank_id, par_donor_branch_id, par_donor_account ) VALUES ( now(), @logId, 1, 'Update', @contactId, '{$extrnal_id}', {$donor_ms_no}, '{$pardonorName}', '{$organization_name}', '{$street_address}', '{$city}','{$postal_code}', 'CAN', '{$email}', '{$donor_envelope}', '{$idb}', {$bank_id}, {$branch_id}, {$account_no} ) ON DUPLICATE KEY UPDATE log_id = @logId, primary_contact_id = @contactId, external_identifier = '{$extrnal_id}', ms_number = {$donor_ms_no}, par_donor_name = '{$pardonorName}', organization_name = '{$organization_name}', street_address = '{$street_address}', city = '{$city}', postal_code = '{$postal_code}', email = '{$email}', par_donor_envelope = '{$donor_envelope}', parent_id = '{$idb}', log_time = now(), par_donor_bank_id = {$bank_id}, par_donor_branch_id = {$branch_id}, par_donor_account = {$account_no};\n";
+            $insertParLog = "INSERT INTO civicrm_log_par_donor ( log_time, log_id, log_contact, log_action, primary_contact_id, external_identifier, ms_number, par_donor_name, organization_name, street_address, city, postal_code, country, email, par_donor_envelope, parent_id, par_donor_bank_id, par_donor_branch_id, par_donor_account, `m&s_amount`, general_amount, other_amount ) VALUES ( now(), @logId, 1, 'Update', @contactId, '{$extrnal_id}', {$donor_ms_no}, '{$pardonorName}', '{$organization_name}', '{$street_address}', '{$city}','{$postal_code}', 'CAN', '{$email}', '{$donor_envelope}', '{$idb}', {$bank_id}, {$branch_id}, {$account_no}, {$donor_ms_amount}, {$donor_cong_amount}, {$donor_other_amount} ) ON DUPLICATE KEY UPDATE log_id = @logId, primary_contact_id = @contactId, external_identifier = '{$extrnal_id}', ms_number = {$donor_ms_no}, par_donor_name = '{$pardonorName}', organization_name = '{$organization_name}', street_address = '{$street_address}', city = '{$city}', postal_code = '{$postal_code}', email = '{$email}', par_donor_envelope = '{$donor_envelope}', parent_id = '{$idb}', log_time = now(), par_donor_bank_id = {$bank_id}, par_donor_branch_id = {$branch_id}, par_donor_account = {$account_no}, `m&s_amount` = {$donor_ms_amount}, general_amount = {$donor_cong_amount}, other_amount = {$donor_other_amount};\n";
             
           }
           
@@ -1445,7 +1447,7 @@ cr.end_date = NOW()
 WHERE cr.is_active = 1 AND cc.contact_type LIKE 'Household' AND cr.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD . ")
 AND cc.external_identifier LIKE 'H-" . $rows[0] . "';\n";
           }
-          $insert_all_rows = $insert_donor . $setContNULL . $contact_id . $setGrpNULL . $groupId . $individual_contact_grp . $setRelNULL . $relID . $insert_donor_rel . $setAddNULL . $addressId . $insert_city . $setEmailNULL . $emailId . $insert_email . $setPhoneNULL . $phoneId . $insert_phone . $setMSNULL . $msId . $insert_ms_number . $setENNULL . $envelopeId . $insert_envelope . $insert_donor_houshold . $setHCNULL . $household_id . $setHGNULL . $houseGroupId . $householdCreate . $household_contact_grp . $setHRNULL . $houseRelID . $insert_donor1_rel . $setHAddNULL . $houseAddressId . $insert_houshold_city . $setHEmailNULL . $houseEmailId . $insert_houshold_email . $setHPhoneNULL . $housePhoneId . $insert_houshold_phone . $setParNULL . $par_accountID . $insertCustom . $setLOGNULL . $logId . $insertParLog;
+          $insert_all_rows = $insert_donor . $setContNULL . $contact_id . $setGrpNULL . $groupId . $individual_contact_grp . $setRelNULL . $relID . $insert_donor_rel . $setAddNULL . $addressId . $insert_city . $setEmailNULL . $emailId . $insert_email . $setPhoneNULL . $phoneId . $insert_phone . $setMSNULL . $msId . $insert_ms_number . $setENNULL . $envelopeId . $insert_envelope . $insert_donor_houshold . $setHCNULL . $household_id . $setHGNULL . $houseGroupId . $householdCreate . $household_contact_grp . $setHRNULL . $houseRelID . $insert_donor1_rel . $setHAddNULL . $houseAddressId . $insert_houshold_city . $setHEmailNULL . $houseEmailId . $insert_houshold_email . $setHPhoneNULL . $housePhoneId . $insert_houshold_phone . $setParNULL . $par_accountID . $insertCustom . $setLOGNULL . $logId . $insertParLog . $updateRecurTable;
           
           fwrite($newRecordsToInsert,$insert_all_rows);
           $count = $count++;
@@ -1605,15 +1607,15 @@ WHERE `log_time` < CURDATE();\n";
         }
         if ( $rows[5] != 0 ) {
           $amount_level[] = 'General -'.number_format($rows[5], 2);
-          $general_amount = number_format($rows[5], 2);
+          $general_amount = $rows[5];
         } 
         if($rows[6] != 0 ) {
           $amount_level[] = 'M&S -'.number_format($rows[6], 2);
-          $ms_amount = number_format($rows[6], 2);
+          $ms_amount = $rows[6];
         } 
         if($rows[7] != 0 ) {
           $amount_level[] = 'Other -'.number_format($rows[7], 2);
-          $other_amount = number_format($rows[7], 2);
+          $other_amount = $rows[7];
         } 
         if ( !empty($amount_level ) ) {
           $amount_level = ''.implode('', $amount_level).'';
