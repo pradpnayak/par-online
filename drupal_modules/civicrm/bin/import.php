@@ -1469,10 +1469,12 @@ AND cc.external_identifier LIKE 'H-" . $rows[0] . "';\n";
     if (!empty($insert_all_rows)) {
       $deleteQuery = "\n UPDATE civicrm_log_par_donor clpd
 LEFT JOIN civicrm_contact cc ON cc.id = clpd.primary_contact_id
+LEFT JOIN civicrm_contribution_recur ccr ON ccr.contact_id = cc.id AND ccr.contribution_status_id = 5
 SET  `log_action` = 'Delete',
 `log_time` = now(),
 removed = 1,
-cc.is_deleted = 1
+cc.is_deleted = 1,
+ccr.contribution_status_id = 1
 WHERE `log_time` < CURDATE();\n";
       fwrite($newRecordsToInsert, $deleteQuery);
     }
