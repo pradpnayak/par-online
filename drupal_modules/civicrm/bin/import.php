@@ -1180,7 +1180,7 @@ Class CRM_par_import {
       }
       
       $totalAmount = $donor_other_amount + $donor_cong_amount + $donor_ms_amount;
-      $updateRecurTable = "/n UPDATE civicrm_contribution_recur SET amount = '{$totalAmount}'  WHERE contact_id = @contactId AND contribution_status_id = 5;\n";
+      $updateRecurTable = "\n UPDATE civicrm_contribution_recur SET amount = '{$totalAmount}'  WHERE contact_id = @contactId AND contribution_status_id = 5;\n";
       if ( !empty( $rows[18] ) ) {
         $donor_ms_no = $rows[18];
       } else {
