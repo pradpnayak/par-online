@@ -468,11 +468,10 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
             CRM_Utils_System::redirect( CRM_Utils_System::url( 'civicrm/contact/view', "reset=1&selectedChild=donation&cid=".$_SESSION['CiviCRM']['view.id'] ) );
         } else {
             $params = array( 
-                            'id' => $_SESSION['CiviCRM']['view.id'],
-                            'version' => 3,
-                            'is_deleted' => '1',
-                             );
-            $result = civicrm_api( 'contact','create',$params );
+              'id' => $_SESSION['CiviCRM']['view.id'],
+              'version' => 3,
+            );
+            $result = civicrm_api('contact', 'delete', $params);
             CRM_Core_Session::setStatus( 'Donor deleted successfully, only users with the relevant permission will be able to restore it.' );
             CRM_Utils_System::redirect( CRM_Utils_System::url( 'civicrm/contact/view', "reset=1&selectedChild=donation&cid=".$_SESSION['CiviCRM']['view.id'] ) );
         }

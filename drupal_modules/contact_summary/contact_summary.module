@@ -1447,6 +1447,17 @@ function contact_summary_civicrm_post( $op, $objectName, $objectId, &$objectRef 
       
       mergeContacts($objectId, $hID);
     }
+          
+    if ($objectName == 'Individual' && $op == 'trash') {
+      $query = "UPDATE civicrm_log_par_donor clpd
+LEFT JOIN civicrm_contribution_recur ccr ON ccr.contact_id = clpd.primary_contact_id AND ccr.contribution_status_id = 5
+SET  `log_action` = 'Delete',
+`log_time` = now(),
+removed = 1,
+ccr.contribution_status_id = 1
+WHERE  clpd.primary_contact_id = {$objectId}";
+      CRM_Core_DAO::executeQuery($query);
+    }
 }
 
 function contact_summary_civicrm_validate( $formName, &$fields, &$files, &$form ) {
