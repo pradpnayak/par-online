@@ -156,6 +156,10 @@ function contact_summary_civicrm_links( $op, $objectName, $objectId, &$links ) {
     }
         $links[23]['title'] = 'My Dashboard';
         $links[23]['url'] = CRM_Utils_System::url( 'civicrm/dashboard',"reset=1");  
+        $links[] = array(
+          'title' => 'Logout',
+          'url' => CRM_Utils_System::url('civicrm/logout', 'reset=1'),
+        );
 }
 
 function contact_summary_civicrm_dashboard( $contactID, &$contentPlacement  ) {
