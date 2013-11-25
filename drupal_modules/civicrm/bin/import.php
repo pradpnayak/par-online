@@ -1374,10 +1374,13 @@ WHERE contact_id_a = @contactId AND relationship_type_id = " . SUPPORTER_RELATIO
             
               $insert_envelope = "INSERT INTO civicrm_value_envelope_13 ( id, entity_id , envelope_number_40) values (@envelopeId, @contactId, {$donor_envelope} ) ON DUPLICATE KEY UPDATE id = @envelopeId, entity_id = @contactId, envelope_number_40 = '{$donor_envelope}';\n";
             }
+            $insertNsfCustomData = NULL;
+            //$insertNsfCustomData = " INSERT INTO civicrm_value_nsf_12 (entity_id, nsf_32, removal_33) VALUES ({$contribution_id}, {$NSF}, {$removed} ) ON DUPLICATE KEY UPDATE entity_id = {$contribution_id};\n";
+
             $setLOGNULL = "SET @logId := '';\n";
             $logId = "SELECT @logId := log_id FROM civicrm_log_par_donor WHERE primary_contact_id = @contactId AND external_identifier = '{$extrnal_id}';\n";
             
-            $insertParLog = "INSERT INTO civicrm_log_par_donor ( log_time, log_id, log_contact, log_action, primary_contact_id, external_identifier, ms_number, par_donor_name, organization_name, street_address, city, postal_code, country, email, par_donor_envelope, parent_id, par_donor_bank_id, par_donor_branch_id, par_donor_account, `m&s_amount`, general_amount, other_amount ) VALUES ( now(), @logId, 1, 'Update', @contactId, '{$extrnal_id}', {$donor_ms_no}, '{$pardonorName}', '{$organization_name}', '{$street_address}', '{$city}','{$postal_code}', 'CAN', '{$email}', '{$donor_envelope}', '{$idb}', {$bank_id}, {$branch_id}, '{$account_no}', {$donor_ms_amount}, {$donor_cong_amount}, {$donor_other_amount} ) ON DUPLICATE KEY UPDATE log_id = @logId, primary_contact_id = @contactId, external_identifier = '{$extrnal_id}', ms_number = {$donor_ms_no}, par_donor_name = '{$pardonorName}', organization_name = '{$organization_name}', street_address = '{$street_address}', city = '{$city}', postal_code = '{$postal_code}', email = '{$email}', par_donor_envelope = '{$donor_envelope}', parent_id = '{$idb}', log_time = now(), par_donor_bank_id = {$bank_id}, par_donor_branch_id = {$branch_id}, par_donor_account = '{$account_no}', `m&s_amount` = {$donor_ms_amount}, general_amount = {$donor_cong_amount}, other_amount = {$donor_other_amount};\n";
+            $insertParLog = "INSERT INTO civicrm_log_par_donor ( log_time, log_id, log_contact, log_action, primary_contact_id, external_identifier, ms_number, par_donor_name, organization_name, street_address, city, postal_code, country, email, par_donor_envelope, parent_id, par_donor_bank_id, par_donor_branch_id, par_donor_account, `m&s_amount`, general_amount, other_amount, nsf, removed ) VALUES ( now(), @logId, 1, 'Update', @contactId, '{$extrnal_id}', {$donor_ms_no}, '{$pardonorName}', '{$organization_name}', '{$street_address}', '{$city}','{$postal_code}', 'CAN', '{$email}', '{$donor_envelope}', '{$idb}', {$bank_id}, {$branch_id}, '{$account_no}', {$donor_ms_amount}, {$donor_cong_amount}, {$donor_other_amount} ) ON DUPLICATE KEY UPDATE log_id = @logId, primary_contact_id = @contactId, external_identifier = '{$extrnal_id}', ms_number = {$donor_ms_no}, par_donor_name = '{$pardonorName}', organization_name = '{$organization_name}', street_address = '{$street_address}', city = '{$city}', postal_code = '{$postal_code}', email = '{$email}', par_donor_envelope = '{$donor_envelope}', parent_id = '{$idb}', log_time = now(), par_donor_bank_id = {$bank_id}, par_donor_branch_id = {$branch_id}, par_donor_account = '{$account_no}', `m&s_amount` = {$donor_ms_amount}, general_amount = {$donor_cong_amount}, other_amount = {$donor_other_amount}, nsf = {$NSF}, removed = {$removed};\n";
             
           }
           
@@ -1447,7 +1450,7 @@ cr.end_date = NOW()
 WHERE cr.is_active = 1 AND cc.contact_type LIKE 'Household' AND cr.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD . ")
 AND cc.external_identifier LIKE 'H-" . $rows[0] . "';\n";
           }
-          $insert_all_rows = $insert_donor . $setContNULL . $contact_id . $setGrpNULL . $groupId . $individual_contact_grp . $setRelNULL . $relID . $insert_donor_rel . $setAddNULL . $addressId . $insert_city . $setEmailNULL . $emailId . $insert_email . $setPhoneNULL . $phoneId . $insert_phone . $setMSNULL . $msId . $insert_ms_number . $setENNULL . $envelopeId . $insert_envelope . $insert_donor_houshold . $setHCNULL . $household_id . $setHGNULL . $houseGroupId . $householdCreate . $household_contact_grp . $setHRNULL . $houseRelID . $insert_donor1_rel . $setHAddNULL . $houseAddressId . $insert_houshold_city . $setHEmailNULL . $houseEmailId . $insert_houshold_email . $setHPhoneNULL . $housePhoneId . $insert_houshold_phone . $setParNULL . $par_accountID . $insertCustom . $setLOGNULL . $logId . $insertParLog . $updateRecurTable;
+          $insert_all_rows = $insert_donor . $setContNULL . $contact_id . $setGrpNULL . $groupId . $individual_contact_grp . $setRelNULL . $relID . $insert_donor_rel . $setAddNULL . $addressId . $insert_city . $setEmailNULL . $emailId . $insert_email . $setPhoneNULL . $phoneId . $insert_phone . $setMSNULL . $msId . $insert_ms_number . $setENNULL . $envelopeId . $insert_envelope . $insert_donor_houshold . $setHCNULL . $household_id . $setHGNULL . $houseGroupId . $householdCreate . $household_contact_grp . $setHRNULL . $houseRelID . $insert_donor1_rel . $setHAddNULL . $houseAddressId . $insert_houshold_city . $setHEmailNULL . $houseEmailId . $insert_houshold_email . $setHPhoneNULL . $housePhoneId . $insert_houshold_phone . $setParNULL . $par_accountID . $insertCustom . $setLOGNULL . $logId . $insertParLog . $updateRecurTable . $insertNsfCustomData;
           
           fwrite($newRecordsToInsert,$insert_all_rows);
           $count = $count++;
@@ -1863,23 +1866,14 @@ AND cd.bank_number_11 = '{$bank_number}'";
             $cc_type = 'NULL';
           }
         }
-        $insertCustomData = $insertNsfCustomData = $setLOGNULL = $logId = $insertParLog = null;
+        $insertCustomData = null;
         if( !empty( $contribution_id )) {
           $setAccountNULL = "SET @aId := '';\n";
           $accountId = "SELECT @aId := id FROM civicrm_value_account_details_2 WHERE entity_id = {$contribution_id};\n";
           
           $insertCustomData = "INSERT INTO civicrm_value_account_details_2 (id, entity_id, bank_name_2, account_number_4, branch_5, cc_type_31, bank__name_38, branch_name_39) VALUES (@aId, {$contribution_id}, '{$bank_name}', '{$account_number}', '{$branch_number}', '{$cc_type}', '{$name_of_bank}', '{$name_of_branch}') ON DUPLICATE KEY UPDATE id = @aId, cc_type_31 = '{$cc_type}';\n";
-          if ( ( $NSF == 0 && $removed == 1 ) || ( $NSF == 1 && $removed == 0 ) ) {
-            $setNsfNULL = "SET @nsfId := '';\n";
-            $nsfId = "SELECT @nsfId := id FROM civicrm_value_nsf_12 WHERE entity_id = {$contribution_id};\n";
-            $insertNsfCustomData = "INSERT INTO civicrm_value_nsf_12 (id, entity_id, nsf_32, removal_33) VALUES (@nsfId, {$contribution_id}, $NSF, $removed ) ON DUPLICATE KEY UPDATE id = @nsfId ;\n";
-          }
-          $setLOGNULL = "SET @logId := '';\n";
-          $logId = "SELECT @logId := log_id FROM civicrm_log_par_donor WHERE primary_contact_id = {$contactId};\n";
-          
-          $insertParLog = "INSERT INTO civicrm_log_par_donor (  log_time, log_id, primary_contact_id, par_donor_bank_id, par_donor_branch_id, par_donor_account, nsf, removed	) VALUES ( now(), @logId, {$contactId}, '{$bank_name}', '{$branch_number}', '{$account_number}', {$NSF}, {$removed} ) ON DUPLICATE KEY UPDATE log_id = @logId, primary_contact_id = {$contactId}, par_donor_bank_id = '{$bank_name}', par_donor_branch_id = '{$branch_number}', par_donor_account = '{$account_number}', nsf = {$NSF}, removed = {$removed}, log_time = now();\n";
     
-          $insert_all_rows  = $setAccountNULL.$accountId.$insertCustomData.$setNsfNULL.$nsfId.$insertNsfCustomData.$setLOGNULL.$logId.$insertParLog;
+          $insert_all_rows  = $setAccountNULL.$accountId.$insertCustomData;
           if( !empty($ContTypeID) ) {
             $count++;
             fwrite($write,$insert_all_rows);
