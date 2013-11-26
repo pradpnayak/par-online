@@ -1180,7 +1180,7 @@ Class CRM_par_import {
       }
       
       $totalAmount = $donor_other_amount + $donor_cong_amount + $donor_ms_amount;
-      $updateRecurTable = "\n UPDATE civicrm_contribution_recur SET amount = '{$totalAmount}'  WHERE contact_id = @contactId AND contribution_status_id = 5;\n";
+      $updateRecurTable = "\n SELECT @recurId := id FROM civicrm_contribution_recur WHERE contact_id = @contactId AND contribution_status_id = 5; Insert into civicrm_contribution_recur (id, contact_id, amount, currency, frequency_unit, frequency_interval, start_date, create_date, contribution_status_id ) values (@recurId, @contactId, '{$total_amount}', 'CAD','month', '1', now(), now(), 5) ON DUPLICATE KEY UPDATE amount = '{$total_amount}'; \n";
       if ( !empty( $rows[18] ) ) {
         $donor_ms_no = $rows[18];
       } else {
