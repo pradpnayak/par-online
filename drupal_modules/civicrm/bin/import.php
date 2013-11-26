@@ -1650,7 +1650,10 @@ WHERE `log_time` < CURDATE();\n";
         } else {
           $contributionStatus = 1;
         }
-
+        
+        $query = "SELECT ccr.id FROM civicrm_contribution_recur ccr 
+INNER JOIN civicrm_contact cc ON cc.id = ccr.contact_id WHERE contribution_status_id = 5 and external_identifier = '{$ext_id}'";
+        $recurID = CRM_Core_DAO::singleValueQuery($query);
         $date = implode(':',$date);
         $tstr           = strtotime($date);
         $start_date     = date('Y-m-d h:i:s', mktime(date('h',$tstr), date('i',$tstr), date('s',$tstr), date('m',$tstr),date('d',$tstr), date('Y',$tstr) ));
@@ -1659,21 +1662,13 @@ WHERE `log_time` < CURDATE();\n";
         //$contactId   = "(Select id from civicrm_contact where external_identifier = '{$ext_id}' )";
         $contact_id = "SELECT @contactId := id FROM civicrm_contact where external_identifier ='{$ext_id}';\n";
         
-        // $contribType = "(Select id from civicrm_contribution_type where parent_id IS NULL and contact_id = (Select contact_id_b from civicrm_relationship where contact_id_a = @contactId and relationship_type_id = 13 ))";  
-        $setRecuNULL = "SET @recurId := '';\n";
-        $recurId = "SELECT @recurId := id FROM civicrm_contribution_recur WHERE contact_id = @contactId AND contribution_status_id = 5 AND amount = '{$total_amount}';\n";
-        
-        $contribRecurInsert = "Insert into civicrm_contribution_recur (id, contact_id, amount, currency, frequency_unit, frequency_interval, start_date, create_date, end_date, contribution_status_id ) values (@recurId, @contactId, '{$total_amount}', 'CAD','month', '1', '{$start_date}', '{$start_date}', '{$end_date}', 5) ON DUPLICATE KEY UPDATE id = @recurId;\n";
-        //$setRecuNULL = "SET @recurId := '';\n";
-        //$recurId = "SELECT @recurId := id FROM civicrm_contribution_recur WHERE contact_id = @contactId AND contribution_status_id = 5 AND amount = '{$total_amount}';\n";
-
         $setContrNULL = "SET @contrId := '';\n";
         $contrId = "SELECT @contrId := id FROM civicrm_contribution WHERE contact_id = @contactId AND contribution_status_id = {$contributionStatus} AND total_amount = '{$total_amount}' AND receive_date = '{$start_date}' ;\n";
 
         if( $rows[9] !='Contributors') {
-          $contrib ="Insert into civicrm_contribution (id, contact_id, contribution_type_id, receive_date, payment_instrument_id, total_amount, fee_amount, net_amount, amount_level, contribution_recur_id, contribution_status_id) values(@contrId, @contactId, {$ContTypeID}, '{$start_date}', 6, '{$total_amount}', '{$fee_amount}', '{$total_amount}', '{$amount_level}', @recurId, {$contributionStatus} ) ON DUPLICATE KEY UPDATE id = @contrId;\n"; 
+          $contrib ="Insert into civicrm_contribution (id, contact_id, contribution_type_id, receive_date, payment_instrument_id, total_amount, fee_amount, net_amount, amount_level, contribution_recur_id, contribution_status_id) values(@contrId, @contactId, {$ContTypeID}, '{$start_date}', 6, '{$total_amount}', '{$fee_amount}', '{$total_amount}', '{$amount_level}', {$recurID}, {$contributionStatus} ) ON DUPLICATE KEY UPDATE id = @contrId;\n"; 
         } else {
-          $contrib ="Insert into civicrm_contribution (id,contact_id, contribution_type_id, receive_date, payment_instrument_id, total_amount, net_amount, amount_level, contribution_recur_id, contribution_status_id) values(@contrId, @contactId, {$ContTypeID}, '{$start_date}', 6, '{$total_amount}',  '{$total_amount}', '{$amount_level}', @recurId, {$contributionStatus} ) ON DUPLICATE KEY UPDATE id = @contrId;\n"; 
+          $contrib ="Insert into civicrm_contribution (id,contact_id, contribution_type_id, receive_date, payment_instrument_id, total_amount, net_amount, amount_level, contribution_recur_id, contribution_status_id) values(@contrId, @contactId, {$ContTypeID}, '{$start_date}', 6, '{$total_amount}',  '{$total_amount}', '{$amount_level}', {$recurID}, {$contributionStatus} ) ON DUPLICATE KEY UPDATE id = @contrId;\n"; 
 
         }
         //$setContrNULL = "SET @contrId := '';\n";
@@ -1723,9 +1718,9 @@ WHERE `log_time` < CURDATE();\n";
                 
         $insertParLog = "INSERT INTO civicrm_log_par_donor (  log_time, log_id, primary_contact_id, external_identifier, `m&s_amount`, general_amount, other_amount ) VALUES ( now(), @logId, @contactId, '{$ext_identifier}', '{$ms_amount}', '{$general_amount}', '{$other_amount}' ) ON DUPLICATE KEY UPDATE log_id = @logId, primary_contact_id = @contactId, `m&s_amount` = '{$ms_amount}', general_amount = '{$general_amount}', other_amount = '{$other_amount}', log_time = now();\n";
     
-        $insert_all_rows  = $contact_id.$setRecuNULL.$recurId.$contribRecurInsert.$recurId.$setContrNULL.$contrId.$contrib.$contrId.$orgId.$generalPFID.$generalPFValue.$setGeneraNULL.$generalLI.$lineItemGeneral.$msPFID.$msPFValue.$setMsNULL.$msLI.$lineItemMS.$otherPFID.$otherPFValue.$setOtherNULL.$otherLI.$lineItemOther.$setLOGNULL.$logId.$insertParLog;
+        $insert_all_rows  = $contact_id.$setContrNULL.$contrId.$contrib.$contrId.$orgId.$generalPFID.$generalPFValue.$setGeneraNULL.$generalLI.$lineItemGeneral.$msPFID.$msPFValue.$setMsNULL.$msLI.$lineItemMS.$otherPFID.$otherPFValue.$setOtherNULL.$otherLI.$lineItemOther.$setLOGNULL.$logId.$insertParLog;
        
-        if( !empty($ContTypeID) ) {
+        if(!empty($ContTypeID) && !empty($recurID)) {
           $count++; 
           fwrite($write,$insert_all_rows); 
         } else {
@@ -1736,7 +1731,7 @@ WHERE `log_time` < CURDATE();\n";
             $header = null;
           } else {
             $error = array();
-            $error[] = "Invalid value for field(s): par_donor_id (Supporter or a fund for them is not found)";
+            $error[] = "Invalid value for field(s): par_donor_id (Supporter or a fund for them is not found) or Recurring contribution not found for contact";
             $rows = array_merge($error, $rows);
             fputcsv( $notwrite,$rows );   
           }  
