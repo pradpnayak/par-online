@@ -108,7 +108,7 @@ class CRM_Contact_Form_Task_Household extends CRM_Contact_Form_Task {
           if (CRM_Utils_Array::value('monthly_donation', $additionalParams) == 'previous') {
             $_GET['cid'] = $additionalParams['monthly_contact_id'];
             require_once 'CRM/Contact/Form/Donation.php';
-            CRM_Contact_Form_Donation::saveContribution($additionalParams);
+            CRM_Contact_Form_Donation::saveContribution($additionalParams, TRUE);
             $_GET['cid'] = '';
           }
           // change external identifier
