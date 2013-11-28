@@ -238,7 +238,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         return $contributionTypes;
     }
 
-    static function saveContribution($postParams = NULL){
+    static function saveContribution($postParams = NULL, $hasPostValue = FALSE){
         require_once 'CRM/Contribute/BAO/ContributionRecur.php';
         require_once 'CRM/Core/Payment/DirectDebit.php';
         require_once 'CRM/Core/Payment/Moneris.php';
@@ -249,7 +249,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         require_once 'CRM/Core/OptionGroup.php';
         require_once 'CRM/Core/BAO/PaymentProcessor.php';
         $mode = 'test';
-        if (!$postParams) {
+        if (!$hasPostValue) {
           $postParams = $_POST;
         }
         if (!CRM_Utils_Array::value('cid', $_GET)) {
