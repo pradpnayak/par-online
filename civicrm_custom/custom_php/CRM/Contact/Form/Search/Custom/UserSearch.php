@@ -149,7 +149,7 @@ LEFT JOIN civicrm_email  AS email  ON ( email.contact_id = contact_a.id AND emai
                                                        $this->_formValues );
         if ( $external_identifier != null ) {
             if ( strpos($external_identifier , '%' ) === false ) {
-                $external_identifier = "%{$external_identifier}%";
+                $external_identifier = "D-{$external_identifier}";
             }
             $params[$count] = array( $external_identifier, 'String' );
             $clause[] = "contact_a.external_identifier LIKE %{$count}";
