@@ -1995,7 +1995,7 @@ AND cd.bank_number_11 = '{$bank_number}'";
     mysql_select_db( "{$this->dbName}", $con);
     $dao = mysql_query( "SELECT id FROM `civicrm_contact` WHERE `external_identifier` LIKE '%A-%'" );
     while(  $ids = mysql_fetch_assoc($dao) ){
-     
+      $flag = FALSE;
      
       $getRelationParam = array( 'version'    => 3,
                                  'contact_id' => $ids['id'] );
@@ -2003,6 +2003,10 @@ AND cd.bank_number_11 = '{$bank_number}'";
       $relationResult   = civicrm_api( 'relationship','get', $getRelationParam );
       foreach( $relationResult[ 'values' ] as $relKey => $relValue ) {
         if( $relValue[ 'relationship_type_id' ] == PAR_ADMIN_RELATION_TYPE_ID || $relValue[ 'relationship_type_id' ] == DENOMINATION_ADMIN_RELATION_TYPE_ID ){
+           if (!$flag && $relValue[ 'contact_id_b']) { 
+             self::clearRelatedContact($ids['id']); 
+             $flag = TRUE;
+           }
           self::putRelatedCache( array( $relValue[ 'contact_id_b' ] ), $ids['id'] );
         }
       }
@@ -2012,7 +2016,6 @@ AND cd.bank_number_11 = '{$bank_number}'";
   }
   function putRelatedCache( $cid, $currCID ) {
     if( $cid ){
-      self::clearRelatedContact( $currCID );
       $flag = 0;
       $insertQuery = "INSERT IGNORE INTO custom_relatedContacts
                     ( contact_id, related_id ) VALUES";
