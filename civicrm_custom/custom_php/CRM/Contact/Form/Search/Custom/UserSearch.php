@@ -78,17 +78,25 @@ implements CRM_Contact_Form_Search_Interface {
         $form->assign( 'elements', array( 'first_name', 'last_name','external_identifier') );
     }
 
-    function all( $offset = 0, $rowcount = 0, $sort = null,
-                  $includeContactIDs = false ) {
-        $selectClause = "
-
+    function all($offset = 0, $rowcount = 0, $sort = NULL,
+      $includeContactIDs = FALSE) {
+      $selectClause = "
 Distinct(contact_a.id) as contact_id, '' as pc_name, '' as conf_name, contact_a.display_name as donor_name,
-contact_a.external_identifier as external_identifier, email.email as email
-";
-        
-        return $this->sql( $selectClause,
-                           $offset, $rowcount, $sort,
-                           $includeContactIDs, null );
+contact_a.external_identifier as external_identifier, email.email as email";
+          
+      if (CRM_Utils_Array::value('external_identifier', $this->_formValues)) {
+        $selectClause .= ", cast(SUBSTRING_INDEX(REPLACE(contact_a.external_identifier, 'D-', ''),'-',1) as unsigned) as int_external_identifier";
+        $sort = 'int_external_identifier, contact_id';
+      }
+
+      return $this->sql( 
+        $selectClause,
+        $offset, 
+        $rowcount, 
+        $sort,
+        $includeContactIDs, 
+        NULL 
+      );
     }
     
     function from( ) {
@@ -149,7 +157,7 @@ LEFT JOIN civicrm_email  AS email  ON ( email.contact_id = contact_a.id AND emai
                                                        $this->_formValues );
         if ( $external_identifier != null ) {
             if ( strpos($external_identifier , '%' ) === false ) {
-                $external_identifier = "D-{$external_identifier}";
+              $external_identifier = 'D-' . str_replace('d-', '', strtolower($external_identifier)) . '%';
             }
             $params[$count] = array( $external_identifier, 'String' );
             $clause[] = "contact_a.external_identifier LIKE %{$count}";
