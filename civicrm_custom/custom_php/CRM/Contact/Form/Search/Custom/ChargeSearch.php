@@ -100,9 +100,9 @@ implements CRM_Contact_Form_Search_Interface {
         list( $this->_aclFrom, $this->_aclWhere ) = CRM_Contact_BAO_Contact_Permission::cacheClause( 'contact_a' );
         
         $selectClause = "
-DISTINCT(contact_a.id) as contact_id, contact_a.display_name as pc_name, city.city as city, contact_a.contact_sub_type as contact_sub_type,
+DISTINCT(contact_a.id) as pc_id, contact_a.display_name as pc_name, city.city as city, contact_a.contact_sub_type as contact_sub_type,
 admin_cc.id as admin_id, admin_cc.display_name as admin_name,
-pc_cong_rel.contact_id_a as pc_cong_id, pc_cong_cc.display_name as pc_cong_name,
+pc_cong_rel.contact_id_a as contact_id, pc_cong_cc.display_name as pc_cong_name,
 pres_rel.contact_id_b as pres_id, pres_cc.display_name as pres_name,
 conf_rel.contact_id_b as conf_id, conf_cc.display_name as conf_name,
 deno_rel.contact_id_b as deno_id, deno_cc.display_name as deno_name,
