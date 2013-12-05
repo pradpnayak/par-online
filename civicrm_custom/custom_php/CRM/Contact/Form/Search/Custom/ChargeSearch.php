@@ -99,13 +99,50 @@ implements CRM_Contact_Form_Search_Interface {
         require_once 'CRM/Contact/BAO/Contact/Permission.php';
         list( $this->_aclFrom, $this->_aclWhere ) = CRM_Contact_BAO_Contact_Permission::cacheClause( 'contact_a' );
         
+        if (CRM_Utils_Array::value('organization_name', $this->_formValues)) {
+          $pastoralCharge = 'pc_id';
+          $adminContact = 'admin_id';
+          $congretionContact = 'cong_id';
+          $denomination = 'contact_id';
+        }
+        elseif (CRM_Utils_Array::value('display_name', $this->_formValues)) {
+          $pastoralCharge = 'contact_id';
+          $adminContact = 'admin_id';
+          $congretionContact = 'cong_id';
+          $denomination = 'deno_id';
+        }
+        elseif (CRM_Utils_Array::value('sort_name', $this->_formValues)) {
+          $pastoralCharge = 'pc_id';
+          $adminContact = 'admin_id';
+          $congretionContact = 'contact_id';
+          $denomination = 'deno_id';
+        }
+        elseif (CRM_Utils_Array::value('first_name', $this->_formValues) ||
+          CRM_Utils_Array::value('last_name', $this->_formValues) ) {
+          $pastoralCharge = 'pc_id';
+          $adminContact = 'contact_id';
+          $congretionContact = 'cong_id';
+          $denomination = 'deno_id';
+        }
+        else {
+          $pastoralCharge = 'contact_id';
+          $adminContact = 'admin_id';
+          $congretionContact = 'cong_id';
+          $denomination = 'deno_id';
+        }
+
+
         $selectClause = "
-DISTINCT(contact_a.id) as pc_id, contact_a.display_name as pc_name, city.city as city, contact_a.contact_sub_type as contact_sub_type,
-admin_cc.id as admin_id, admin_cc.display_name as admin_name,
-pc_cong_rel.contact_id_a as contact_id, pc_cong_cc.display_name as pc_cong_name,
-pres_rel.contact_id_b as pres_id, pres_cc.display_name as pres_name,
-conf_rel.contact_id_b as conf_id, conf_cc.display_name as conf_name,
-deno_rel.contact_id_b as deno_id, deno_cc.display_name as deno_name,
+DISTINCT(contact_a.id) as {$pastoralCharge}, 
+admin_cc.id as {$adminContact},
+pc_cong_rel.contact_id_a as {$congretionContact},
+deno_rel.contact_id_b as {$denomination},
+
+conf_rel.contact_id_b as conf_id,contact_a.display_name as pc_name, city.city as city, 
+contact_a.contact_sub_type as contact_sub_type, 
+admin_cc.display_name as admin_name, pc_cong_cc.display_name as pc_cong_name,
+pres_rel.contact_id_b as pres_id, pres_cc.display_name as pres_name, 
+conf_cc.display_name as conf_name, deno_cc.display_name as deno_name,
 non_uc_rel.contact_id_b as non_uc_id, non_uc_cc.display_name as non_uc_name
 ";
 
