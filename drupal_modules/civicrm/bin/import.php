@@ -1180,7 +1180,27 @@ Class CRM_par_import {
       }
       
       $totalAmount = $donor_other_amount + $donor_cong_amount + $donor_ms_amount;
-      $updateRecurTable = "\n SELECT @recurId := id FROM civicrm_contribution_recur WHERE contact_id = @contactId AND contribution_status_id = 5; Insert into civicrm_contribution_recur (id, contact_id, amount, currency, frequency_unit, frequency_interval, start_date, create_date, contribution_status_id ) values (@recurId, @contactId, '{$total_amount}', 'CAD','month', '1', now(), now(), 5) ON DUPLICATE KEY UPDATE amount = '{$total_amount}'; \n";
+      $updateRecurTable = "\n SELECT @recurId := id FROM civicrm_contribution_recur WHERE contact_id = @contactId AND contribution_status_id = 5; Insert into civicrm_contribution_recur (id, contact_id, amount, currency, frequency_unit, frequency_interval, start_date, create_date, contribution_status_id ) values (@recurId, @contactId, '{$total_amount}', 'CAD','month', '1', now(), now(), 5) ON DUPLICATE KEY UPDATE amount = '{$total_amount}'; SELECT @recurId := id FROM civicrm_contribution_recur WHERE contact_id = @contactId AND contribution_status_id = 5;\n";
+      
+      $updateRecurTable .= " Insert into civicrm_line_item (entity_table, entity_id, price_field_id, label, qty, unit_price, line_total, price_field_value_id)
+Select  'civicrm_contribution_recur', @recurId, cpf.id, cct.name, 1, '1.00', 
+CASE WHEN cct.name LIKE 'General' THEN '{$donor_cong_amount}'
+WHEN cct.name LIKE 'M&S' THEN '{$donor_ms_amount}'
+WHEN cct.name LIKE 'Other' THEN '{$donor_other_amount}'
+END as amount,
+ cpfv.id FROM civicrm_contribution_type as cct LEFT JOIN civicrm_price_field as cpf ON cpf.contribution_type_id = cct.id LEFT JOIN civicrm_price_field_value as cpfv ON cpf.id = cpfv.price_field_id  LEFT JOIN civicrm_contact cc ON cc.id = cct.contact_id
+WHERE cc.external_identifier = '{$donor_owner_id}' AND cct.parent_id IS NOT NULL
+AND 
+
+CASE WHEN cct.name LIKE 'General' THEN '{$donor_cong_amount}'
+WHEN cct.name LIKE 'M&S' THEN '{$donor_ms_amount}'
+WHEN cct.name LIKE 'Other' THEN '{$donor_other_amount}'
+END !=0 
+ON DUPLICATE KEY UPDATE line_total = CASE WHEN cct.name LIKE 'General' THEN '{$donor_cong_amount}'
+WHEN cct.name LIKE 'M&S' THEN '{$donor_ms_amount}'
+WHEN cct.name LIKE 'Other' THEN '{$donor_other_amount}'
+END;\n";
+
       if ( !empty( $rows[18] ) ) {
         $donor_ms_no = $rows[18];
       } else {
@@ -1645,12 +1665,8 @@ WHERE `log_time` < CURDATE();\n";
         $previousMonth = date('m',strtotime('last month'));
         unset($date[3]);
         
-        if (strtotime($traDate) > strtotime($startDate)) {
-          $contributionStatus = 5;
-        } else {
-          $contributionStatus = 1;
-        }
-        
+        // for par_donor_transaction.csv the contribution status should be always completed.
+        $contributionStatus = 1;
         $query = "SELECT ccr.id FROM civicrm_contribution_recur ccr 
 INNER JOIN civicrm_contact cc ON cc.id = ccr.contact_id WHERE contribution_status_id = 5 and external_identifier = '{$ext_id}'";
         $recurID = CRM_Core_DAO::singleValueQuery($query);
@@ -1995,7 +2011,6 @@ AND cd.bank_number_11 = '{$bank_number}'";
     mysql_select_db( "{$this->dbName}", $con);
     $dao = mysql_query( "SELECT id FROM `civicrm_contact` WHERE `external_identifier` LIKE '%A-%'" );
     while(  $ids = mysql_fetch_assoc($dao) ){
-      $flag = FALSE;
      
       $getRelationParam = array( 'version'    => 3,
                                  'contact_id' => $ids['id'] );
@@ -2003,10 +2018,6 @@ AND cd.bank_number_11 = '{$bank_number}'";
       $relationResult   = civicrm_api( 'relationship','get', $getRelationParam );
       foreach( $relationResult[ 'values' ] as $relKey => $relValue ) {
         if( $relValue[ 'relationship_type_id' ] == PAR_ADMIN_RELATION_TYPE_ID || $relValue[ 'relationship_type_id' ] == DENOMINATION_ADMIN_RELATION_TYPE_ID ){
-           if (!$flag && $relValue[ 'contact_id_b']) { 
-             self::clearRelatedContact($ids['id']); 
-             $flag = TRUE;
-           }
           self::putRelatedCache( array( $relValue[ 'contact_id_b' ] ), $ids['id'] );
         }
       }
@@ -2016,6 +2027,7 @@ AND cd.bank_number_11 = '{$bank_number}'";
   }
   function putRelatedCache( $cid, $currCID ) {
     if( $cid ){
+      self::clearRelatedContact($currCID);
       $flag = 0;
       $insertQuery = "INSERT IGNORE INTO custom_relatedContacts
                     ( contact_id, related_id ) VALUES";
