@@ -7,7 +7,7 @@ function make_entry_in_par_log( $op, $params ) {
     } else {
       $where = "WHERE primary_contact_id = ".$params['primary_contact_id'];
     }
-    $update = "SET log_action = '".$op."', ";
+    $update = "SET log_action = '".$op."', log_time = now()," ;
     foreach ( $params as $key => $value ) {
       if ('primary_contact_id' == $key ) {
         //$update .= $key." = ".$value.", ";
@@ -24,7 +24,7 @@ function make_entry_in_par_log( $op, $params ) {
     }
     $query = "INSERT INTO civicrm_log_par_donor (".implode(", " ,array_keys($params) ).", primary_contact_id, log_action ) VALUES ( '".implode("', '" ,$params )."', ".$contact_id.", 'INSERT'  )";
   }  else if ( $op == 'Delete' ) {
-    $update = "SET log_action = '".$op."', ";
+    $update = "SET log_action = '".$op."', log_time = now(),";
     foreach ( $params as $key => $value ) {
       if ('primary_contact_id' == $key ) {
         //$update .= $key." = ".$value.", ";
