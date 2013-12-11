@@ -1182,7 +1182,11 @@ Class CRM_par_import {
       $updateRecurTable = "\n SELECT @recurId := id FROM civicrm_contribution_recur WHERE contact_id = @contactId AND contribution_status_id = 5; Insert into civicrm_contribution_recur (id, contact_id, amount, currency, frequency_unit, frequency_interval, start_date, create_date, contribution_status_id ) values (@recurId, @contactId, '{$total_amount}', 'CAD','month', '1', now(), now(), 5) ON DUPLICATE KEY UPDATE amount = '{$total_amount}'; SELECT @recurId := id FROM civicrm_contribution_recur WHERE contact_id = @contactId AND contribution_status_id = 5;\n";
       
       $updateRecurTable .= " Insert into civicrm_line_item (entity_table, entity_id, price_field_id, label, qty, unit_price, line_total, price_field_value_id)
-Select  'civicrm_contribution_recur', @recurId, cpf.id, cct.name, 1, '1.00', 
+Select  'civicrm_contribution_recur', @recurId, cpf.id, cct.name,  CAST(
+CASE WHEN cct.name LIKE 'General' THEN '{$donor_cong_amount}'
+WHEN cct.name LIKE 'M&S' THEN '{$donor_ms_amount}'
+WHEN cct.name LIKE 'Other' THEN '{$donor_other_amount}'
+END as unsigned) as qty, '1.00', 
 CASE WHEN cct.name LIKE 'General' THEN '{$donor_cong_amount}'
 WHEN cct.name LIKE 'M&S' THEN '{$donor_ms_amount}'
 WHEN cct.name LIKE 'Other' THEN '{$donor_other_amount}'
@@ -1687,7 +1691,7 @@ INNER JOIN civicrm_contact cc ON cc.id = ccr.contact_id WHERE contribution_statu
 
         }
         //$setContrNULL = "SET @contrId := '';\n";
-        //$contrId = "SELECT @contrId := id FROM civicrm_contribution WHERE contact_id = @contactId AND contribution_status_id = 5 AND total_amount = '{$total_amount}';\n";
+        $contrId .= "SELECT @contrId := max(id) FROM civicrm_contribution WHERE contact_id = @contactId AND contribution_status_id = {$contributionStatus} AND total_amount = '{$total_amount}';\n";
         
         $orgId = "Select @orgId := contact_id_b from civicrm_relationship where contact_id_a = @contactId and relationship_type_id = ".SUPPORTER_RELATION_TYPE_ID.";\n";
          
