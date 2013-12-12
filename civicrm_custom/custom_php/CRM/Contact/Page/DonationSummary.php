@@ -94,13 +94,14 @@ AND donation.receive_date BETWEEN '$startDate' AND '$endDate'
 AND donation.contribution_status_id = 1
 AND cc.is_deleted != 1
 AND donation.is_test = 0
+AND cct.entity_table = 'civicrm_contribution'
 GROUP BY cct.label";
     } 
     elseif ($duration == 'monthAnticipated') {
       $query = "SELECT cct.label, SUM(cct.line_total) sm FROM custom_relatedContacts crc
 INNER JOIN civicrm_contact cc ON cc.id = crc.related_id 
 INNER JOIN civicrm_relationship org_supporter ON org_supporter.contact_id_b = crc.related_id
-INNER JOIN civicrm_contribution donation ON org_supporter.contact_id_a = donation.contact_id
+INNER JOIN civicrm_contribution_recur donation ON org_supporter.contact_id_a = donation.contact_id
 INNER JOIN civicrm_line_item cct ON cct.entity_id = donation.id
 WHERE crc.contact_id = ".$cid."
 AND org_supporter.relationship_type_id = ".SUPPORTER_RELATION_TYPE_ID."
@@ -109,6 +110,7 @@ AND org_supporter.is_active = 1
 AND donation.contribution_status_id = 5
 AND cc.is_deleted != 1
 AND donation.is_test = 0
+AND cct.entity_table = 'civicrm_contribution_recur'
 GROUP BY cct.label";
     } 
     else {
@@ -125,6 +127,7 @@ AND YEAR( donation.receive_date ) = YEAR(NOW())
 AND donation.contribution_status_id = 1
 AND cc.is_deleted != 1
 AND donation.is_test = 0
+AND cct.entity_table = 'civicrm_contribution'
 GROUP BY cct.label";
     }
     $dao = CRM_Core_DAO::executeQuery( $query );
@@ -173,7 +176,7 @@ AND donation.is_test = 0";
     $query = "SELECT count(DISTINCT(donation.contact_id)) count FROM custom_relatedContacts crc
 INNER JOIN civicrm_contact cc ON cc.id = crc.related_id 
 INNER JOIN civicrm_relationship org_supporter ON org_supporter.contact_id_b = crc.related_id
-INNER JOIN civicrm_contribution donation ON org_supporter.contact_id_a = donation.contact_id
+INNER JOIN civicrm_contribution_recur donation ON org_supporter.contact_id_a = donation.contact_id
 WHERE crc.contact_id = ".$cid." 
 AND org_supporter.relationship_type_id = ".SUPPORTER_RELATION_TYPE_ID."
 AND donation.id IS NOT NULL
