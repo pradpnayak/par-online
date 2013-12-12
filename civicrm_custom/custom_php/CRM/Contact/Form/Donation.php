@@ -388,37 +388,43 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         if ( $fieldDetails[ 'payment_instrument' ] != 1 ) {
           $paymentProcessor = new CRM_Core_Payment_DirectDebit($mode, $paymentProcessor = NULL);
           $recurObj = CRM_Contribute_BAO_ContributionRecur::add( $recurParams, $ids = NULL );
-            $params[ 'contribution_recur_id' ] = $recurObj->id;
-            $params[ 'source' ]                = 'Direct Debit';
-            $params[ 'fee_amount' ]            = 0.00;
-            $params[ 'net_amount' ]            = $params[ 'total_amount' ];
-            foreach( $bankDetails as $bankKey => $bankValue ) {
-              $params[$bankValue] = CRM_Utils_Array::value($bankKey, $fieldDetails);
+          $params[ 'contribution_recur_id' ] = $recurObj->id;
+          $params[ 'source' ]                = 'Direct Debit';
+          $params[ 'fee_amount' ]            = 0.00;
+          $params[ 'net_amount' ]            = $params[ 'total_amount' ];
+          foreach( $bankDetails as $bankKey => $bankValue ) {
+            $params[$bankValue] = CRM_Utils_Array::value($bankKey, $fieldDetails);
+          }
+          unset( $params[$bankDetails['type']] );
+          $paymentProcessor->doDirectPayment( $params );
+          $result = civicrm_api( 'contribution', 'create', $params );
+          if ( array_key_exists( 'id', $result ) && $fieldDetails['pricesetid'] ) {
+            require_once 'CRM/Contribute/Form/AdditionalInfo.php';
+            $lineSet[ $fieldDetails['pricesetid'] ] = $lineitem;
+            CRM_Contribute_Form_AdditionalInfo::processPriceSet( $result['id'], $lineSet );
+            if ($recurObj->id) {
+              self::processRecurPriceSet($recurObj->id, $lineSet);
             }
-            unset( $params[$bankDetails['type']] );
-            $paymentProcessor->doDirectPayment( $params );
-            $result = civicrm_api( 'contribution', 'create', $params );
-            if ( array_key_exists( 'id', $result ) && $fieldDetails['pricesetid'] ) {
-                require_once 'CRM/Contribute/Form/AdditionalInfo.php';
-                $lineSet[ $fieldDetails['pricesetid'] ] = $lineitem;
-                CRM_Contribute_Form_AdditionalInfo::processPriceSet( $result['id'], $lineSet );
-            }
+          }
         } elseif ( $fieldDetails[ 'payment_instrument' ] == 1 ) {
-            $params[$bankDetails['type']] = $ccType[ $fieldDetails['cc_type'] ];
-            $params[ 'fee_amount' ]       = CRM_Utils_Money::format($params[ 'total_amount' ] * CC_FEES / 100, null, '%a' );
-            $params[ 'net_amount' ]       = CRM_Utils_Money::format($params[ 'total_amount' ] - $params[ 'fee_amount' ], null, '%a' );
-            $params[ 'source' ]           = 'Moneris';
-            $monerisResult = $moneris->doDirectPayment( $monerisParams );
-            if ( $monerisResult['trxn_result_code'] == '27' ) {
-                $recurObj = CRM_Contribute_BAO_ContributionRecur::add( $recurParams );
-                $params['contribution_recur_id']  = $recurObj->id;
-                $result = civicrm_api( 'contribution','create',$params );
-                if ( array_key_exists( 'id', $result ) && $fieldDetails['pricesetid'] ) {
-                    require_once 'CRM/Contribute/Form/AdditionalInfo.php';
-                    $lineSet[ $fieldDetails['pricesetid'] ] = $lineitem;
-                    CRM_Contribute_Form_AdditionalInfo::processPriceSet( $result['id'], $lineSet );
-                }
+          $params[$bankDetails['type']] = $ccType[ $fieldDetails['cc_type'] ];
+          $params[ 'fee_amount' ]       = CRM_Utils_Money::format($params[ 'total_amount' ] * CC_FEES / 100, null, '%a' );
+          $params[ 'net_amount' ]       = CRM_Utils_Money::format($params[ 'total_amount' ] - $params[ 'fee_amount' ], null, '%a' );
+          $params[ 'source' ]           = 'Moneris';
+          $monerisResult = $moneris->doDirectPayment( $monerisParams );
+          if ( $monerisResult['trxn_result_code'] == '27' ) {
+            $recurObj = CRM_Contribute_BAO_ContributionRecur::add( $recurParams );
+            $params['contribution_recur_id']  = $recurObj->id;
+            $result = civicrm_api( 'contribution','create',$params );
+            if ( array_key_exists( 'id', $result ) && $fieldDetails['pricesetid'] ) {
+              require_once 'CRM/Contribute/Form/AdditionalInfo.php';
+              $lineSet[ $fieldDetails['pricesetid'] ] = $lineitem;
+              CRM_Contribute_Form_AdditionalInfo::processPriceSet( $result['id'], $lineSet );
+               if ($recurObj->id) {
+                 self::processRecurPriceSet($recurObj->id, $lineSet);
+               }
             }
+          }
         }
         CRM_Core_Session::setStatus( 'Donations added successfully' );
     }
@@ -571,5 +577,26 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
             CRM_Core_Session::setStatus( 'No On hold recurring contributions available' );
             CRM_Utils_System::redirect( CRM_Utils_System::url( 'civicrm/contact/view', "reset=1&selectedChild=donation&cid=".$_SESSION['CiviCRM']['view.id'] ) );
         }
+    } 
+    function processRecurPriceSet($contributionRecurId, $lineItem) {
+      if (!$contributionRecurId || !is_array($lineItem)
+          || CRM_Utils_system::isNull($lineItem)
+          ) {
+        return;
+      }
+
+      require_once 'CRM/Price/BAO/Set.php';
+      require_once 'CRM/Price/BAO/LineItem.php';
+      foreach ($lineItem as $priceSetId => $values) {
+        if (!$priceSetId) {
+          continue;
+        }
+        foreach ($values as $line) {
+          $line['entity_table'] = 'civicrm_contribution_recur';
+          $line['entity_id'] = $contributionRecurId;
+          CRM_Price_BAO_LineItem::create($line);
+        }
+        CRM_Price_BAO_Set::addTo('civicrm_contribution_recur', $contributionRecurId, $priceSetId);
+      }
     }
 }
