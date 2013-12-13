@@ -251,10 +251,17 @@ class CRM_Report_Form_Contribute_RelatedDetail extends CRM_Report_Form {
 
     function from( ) {
         $this->_from = null;
+        
+        if ($this->_id == 39) {
+          $tableName = 'civicrm_contribution_recur';
+        }
+        else {
+          $tableName = 'civicrm_contribution';          
+        }
 
         $this->_from = "
         FROM  civicrm_contact      {$this->_aliases['civicrm_contact']} {$this->_aclFrom}
-              INNER JOIN civicrm_contribution {$this->_aliases['civicrm_contribution']} 
+              INNER JOIN {$tableName} {$this->_aliases['civicrm_contribution']} 
                       ON {$this->_aliases['civicrm_contact']}.id = {$this->_aliases['civicrm_contribution']}.contact_id AND {$this->_aliases['civicrm_contribution']}.is_test = 0";
         $this->_from .= " LEFT JOIN custom_relatedContacts relContact ON  relContact.related_id = {$this->_aliases['civicrm_contribution']}.contact_id ";
         if ( !empty($this->_params['ordinality_value']) ) {
@@ -263,10 +270,12 @@ class CRM_Report_Form_Contribute_RelatedDetail extends CRM_Report_Form {
                       ON {$this->_aliases['civicrm_contribution_ordinality']}.id = {$this->_aliases['civicrm_contribution']}.id";
         }
 
+        if (CRM_Utils_Array::value('phone',  $this->_params['fields'])) {
         $this->_from .= "
                LEFT JOIN  civicrm_phone {$this->_aliases['civicrm_phone']} 
                       ON ({$this->_aliases['civicrm_contact']}.id = {$this->_aliases['civicrm_phone']}.contact_id AND 
                          {$this->_aliases['civicrm_phone']}.is_primary = 1)";
+        }
         
         if ( $this->_addressField OR ( !empty($this->_params['state_province_id_value']) OR !empty($this->_params['country_id_value']) ) ) { 
             $this->_from .= "
@@ -285,7 +294,7 @@ class CRM_Report_Form_Contribute_RelatedDetail extends CRM_Report_Form {
         if ( $this->_lineItem ) {
             $this->_from .= " 
             LEFT JOIN civicrm_line_item {$this->_aliases['civicrm_line_item']} 
-                   ON {$this->_aliases['civicrm_contribution']}.id = {$this->_aliases['civicrm_line_item']}.entity_id\n";
+                   ON {$this->_aliases['civicrm_contribution']}.id = {$this->_aliases['civicrm_line_item']}.entity_id AND {$this->_aliases['civicrm_line_item']}.entity_table = '{$tableName}'\n";
             
         }
     }
