@@ -357,6 +357,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
                                'create_date'            => $trxn_date,
                                'modified_date'          => $trxn_date,
                                'frequency_unit'         => $fieldDetails['frequency_unit'],
+                               'payment_instrument_id'  => $fieldDetails['payment_instrument'],
                                'contribution_status_id' => 5,
                                'payment_processor_id'   => 6,
                                'invoice_id'             => $invoice,
