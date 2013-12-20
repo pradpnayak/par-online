@@ -2017,10 +2017,14 @@ AND cd.bank_number_11 = '{$bank_number}'";
      
       $getRelationParam = array( 'version'    => 3,
                                  'contact_id' => $ids['id'] );
-     
+      $denoFlag = FALSE;
       $relationResult   = civicrm_api( 'relationship','get', $getRelationParam );
       foreach( $relationResult[ 'values' ] as $relKey => $relValue ) {
         if( $relValue[ 'relationship_type_id' ] == PAR_ADMIN_RELATION_TYPE_ID || $relValue[ 'relationship_type_id' ] == DENOMINATION_ADMIN_RELATION_TYPE_ID ){
+          if ($relValue[ 'relationship_type_id' ] != DENOMINATION_ADMIN_RELATION_TYPE_ID || !$denoFlag) {
+            self::clearRelatedContact($ids['id']);
+            $denoFlag = TRUE;
+          }
           self::putRelatedCache( array( $relValue[ 'contact_id_b' ] ), $ids['id'] );
         }
       }
@@ -2030,7 +2034,6 @@ AND cd.bank_number_11 = '{$bank_number}'";
   }
   function putRelatedCache( $cid, $currCID ) {
     if( $cid ){
-      self::clearRelatedContact($currCID);
       $flag = 0;
       $insertQuery = "INSERT IGNORE INTO custom_relatedContacts
                     ( contact_id, related_id ) VALUES";
@@ -2345,7 +2348,7 @@ try {
   $attachFile = TRUE;
 }
 catch(Exception $e) {
-  $details = 'EXPORT FAILED SINCE : ' . $e->getMessage(); 
+  $details = 'EXPORT FAILED SINCE : ' . $e->getMessage();
 }
 $importObj->createActivity(PAROnline2PAR_ACTIVITY_TYPE_ID, 'PAR Online to PAR Legacy Export', $details, $attachFile);
 $importObj->sendMail();
