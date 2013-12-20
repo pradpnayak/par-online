@@ -661,6 +661,15 @@ AND a.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD
 
         $smarty->_tpl_vars['activityTypes']['stop'] = 'Stop All Donations Permanently';
         $smarty->_tpl_vars['urls']['stop'] =  CRM_Utils_System::url('civicrm/contact/stop/donation', "reset=1&cid=".$_SESSION['CiviCRM']['view.id']);
+
+        // UCCPAR-414
+        $relId = CRM_Core_DAO::singleValueQuery('SELECT id FROM `civicrm_relationship`
+          WHERE is_active = 1 AND relationship_type_id = %1 AND contact_id_a = %2', 
+          array(1 => array(MEMBER_OF_HOUSEHOLD, 'Integer'), 2 => array($_SESSION['CiviCRM']['view.id'], 'Integer')));
+        if ($relId) {
+          $smarty->_tpl_vars['activityTypes']['remove'] = 'Remove From Household';
+          $smarty->_tpl_vars['urls']['remove'] =  CRM_Utils_System::url('civicrm/contact/view/rel', "action=disable&reset=1&rtype=a_b&id={$relId}&cid=".$_SESSION['CiviCRM']['view.id']);
+        }
         $page->assign('actionsMenuList', array() );
     }
  
