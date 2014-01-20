@@ -28,7 +28,7 @@ function paronline_to_par_synch_civicrm_post( $op, $objectName, $objectId, &$obj
       $query = "SELECT log_id FROM civicrm_log_par_donor WHERE primary_contact_id = ".$objectRef->contact_id_a;
       $log_id = CRM_Core_DAO::singleValueQuery($query);
       if ( !empty($log_id) ) {
-        make_entry_in_par_log('Update', $params );
+        make_entry_in_par_log('Update', $params, $op == 'create' ? 'Insert': NULL);
       } else {
         make_entry_in_par_log('Insert', $params );
       }
@@ -128,7 +128,7 @@ function paronline_to_par_synch_civicrm_post( $op, $objectName, $objectId, &$obj
       $query = "SELECT log_id FROM civicrm_log_par_donor WHERE primary_contact_id =".$objectRef->id;
       $log_id = CRM_Core_DAO::singleValueQuery($query);
       if ( !empty($log_id) ) {
-        make_entry_in_par_log( 'Update', $params );
+        make_entry_in_par_log( 'Update', $params, 'Insert');
       } else {
         make_entry_in_par_log( 'Insert', $params );
       }
@@ -157,6 +157,9 @@ function paronline_to_par_synch_civicrm_custom( $op, $groupID, $entityID, &$para
         $result = explode( '-',$external_identifier);
         $details['external_identifier'] = $result[1];
       } 
+      else {
+        $details['external_identifier'] = updateContactExtIdentifier($entityID);
+      }
       $details['primary_contact_id']  = $entityID;
             
       foreach ( $params as $key => $value ) {
