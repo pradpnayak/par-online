@@ -1735,7 +1735,10 @@ WHERE external_identifier LIKE 'D-%';");
   else {
     $maxExtId++;
   }  
-  CRM_Core_DAO::setFieldValue('CRM_Contact_DAO_Contact', $contactId, 'external_identifier', 'D-' . $maxExtId);
+  $flag = CRM_Core_DAO::setFieldValue('CRM_Contact_DAO_Contact', $contactId, 'external_identifier', 'D-' . $maxExtId);
+  if ($flag) {
+    return $maxExtId;
+  }
 }
 
 function mergeContacts($contactA, $contactB, $postHook = TRUE) {
