@@ -198,23 +198,24 @@ Class CRM_par_import {
           
           $parent_contribution_type = "INSERT INTO civicrm_contribution_type ( id, name, accounting_code, description, is_deductible, is_active, contact_id ) values ( @parentId, '{$organization_name}',55, '{$organization_name}', 1, 1, @contactId ) ON DUPLICATE KEY UPDATE id = @parentId, name = '{$organization_name}', description = '{$organization_name}', contact_id = @contactId;\n";
           
-          $setGenNULL = "SELECT @parentId := id FROM civicrm_contribution_type WHERE contact_id = @contactId AND parent_id IS NULL;\n SET @general_id := '';\n";
+          //$parent_id =  "SELECT @parentId := id FROM civicrm_contribution_type WHERE contact_id = @contactId AND parent_id IS NULL;\n";
+          $setGenNULL = "SET @general_id := '';\n";
           $general_id = "SELECT @general_id := id FROM civicrm_contribution_type WHERE name = 'General' AND contact_id = @contactId AND parent_id = @parentId;\n";
           $general_contribution_type = "INSERT INTO civicrm_contribution_type ( id, name, accounting_code, description, is_deductible, is_active, contact_id, parent_id ) values ( @general_id, 'General',55, '{$organization_name}', 1, 1, @contactId, @parentId ) ON DUPLICATE KEY UPDATE id = @general_id, description = '{$organization_name}', contact_id = @contactId , parent_id = @parentId ;\n";
           
-          $general_contribution_type .= "SELECT @general_id := id FROM civicrm_contribution_type WHERE name = 'General' AND contact_id = @contactId AND parent_id = @parentId;\n";
+          //$general_id = "SELECT @general_id := id FROM civicrm_contribution_type WHERE name = 'General' AND contact_id = @contactId AND parent_id = @parentId;\n";
           $setSetNULL = "SET @setId := '';\n";
-          $price_setId = "SELECT @setId := id FROM civicrm_price_set WHERE contribution_type_id = @parentId;\n";
+          $price_setId = "SELECT @setId := id FROM civicrm_price_set WHERE name = '{$organization_name}' AND title = '{$organization_name}';\n";
 
-          $insert_price_set = "INSERT INTO civicrm_price_set ( id, name, title, is_active, contribution_type_id) VALUES ( @setId, '{$organization_name}', '{$organization_name}', 1, @parentId) ON DUPLICATE KEY UPDATE id = @setId, name = '{$organization_name}', title = '{$organization_name}';\n";
+          $insert_price_set = "INSERT INTO civicrm_price_set ( id, name, title, is_active ) VALUES ( @setId, '{$organization_name}', '{$organization_name}', 1 ) ON DUPLICATE KEY UPDATE id = @setId, name = '{$organization_name}', title = '{$organization_name}';\n";
           
-          $insert_price_set .= "SELECT @setId := id FROM civicrm_price_set WHERE name = '{$organization_name}' AND title = '{$organization_name}';\n";
+          //$price_setId = "SELECT @setId := id FROM civicrm_price_set WHERE name = '{$organization_name}' AND title = '{$organization_name}';\n";
           $setGPFNULL = "SET @gpfID := '';\n";
           $general_price_fieldId = "SELECT @gpfID := id FROM civicrm_price_field WHERE contribution_type_id = @general_id;\n";
 
           $insert_general_price_field = "INSERT INTO civicrm_price_field ( id, price_set_id, name, label, html_type, is_enter_qty, weight, is_display_amounts, options_per_line, is_active, is_required, visibility_id, contribution_type_id ) VALUES ( @gpfID, @setId, CONCAT('General_', (SELECT description FROM civicrm_contribution_type WHERE contact_id = @contactId AND name = 'General') ), 'General', 'Text', 1, 1, 0, 1, 1, 0, 1, @general_id ) ON DUPLICATE KEY UPDATE id = @gpfID,contribution_type_id = @general_id, price_set_id = @setId, name = CONCAT('General_', (SELECT description FROM civicrm_contribution_type WHERE contact_id = @contactId AND name = 'General') );\n";
           
-          $insert_general_price_field .= "SELECT @gpfID := id FROM civicrm_price_field WHERE contribution_type_id = @general_id;\n";
+          //$general_price_fieldId = "SELECT @gpfID := id FROM civicrm_price_field WHERE contribution_type_id = @general_id;\n";
           $setGPFVNULL = "SET @gpfvID := '';\n";
           $general_pfvId = "SELECT @gpfvID := id FROM civicrm_price_field_value WHERE price_field_id = @gpfID;\n";
 
@@ -225,14 +226,14 @@ Class CRM_par_import {
           
           $ms_contribution_type = "INSERT INTO civicrm_contribution_type ( id, name, accounting_code, description, is_deductible, is_active, contact_id, parent_id ) values ( @ms_id, 'M&S',55, '{$organization_name}', 1, 1,@contactId, @parentId ) ON DUPLICATE KEY UPDATE id = @ms_id, description = '{$organization_name}', contact_id = @contactId , parent_id = @parentId ;\n";
 
-          $ms_contribution_type .= "SELECT @ms_id := id FROM civicrm_contribution_type WHERE name = 'M&S' AND contact_id = @contactId AND parent_id = @parentId;\n";
+          //$ms_id = "SELECT @ms_id := id FROM civicrm_contribution_type WHERE name = 'M&S' AND contact_id = @contactId AND parent_id = @parentId;\n";
           
           $setMSPFNULL = "SET @mpfID := '';\n";
           $ms_price_fieldId = "SELECT @mpfID := id FROM civicrm_price_field WHERE contribution_type_id = @ms_id;\n";
           
           $insert_ms_price_field = "INSERT INTO civicrm_price_field ( id, price_set_id, name, label, html_type, is_enter_qty, weight, is_display_amounts, options_per_line, is_active, is_required, visibility_id, contribution_type_id ) VALUES ( @mpfID, @setId, CONCAT('M&S_', (SELECT description FROM civicrm_contribution_type WHERE contact_id = @contactId AND name = 'M&S') ), 'M&S', 'Text', 1, 2, 0, 1, 1, 0, 1, @ms_id ) ON DUPLICATE KEY UPDATE id = @mpfID, contribution_type_id = @ms_id, price_set_id = @setId, name =  CONCAT('M&S_', (SELECT description FROM civicrm_contribution_type WHERE contact_id = @contactId AND name = 'M&S') );\n";
                 
-          $insert_ms_price_field .= "SELECT @mpfID := id FROM civicrm_price_field WHERE contribution_type_id = @ms_id;\n";
+          //$ms_price_fieldId = "SELECT @mpfID := id FROM civicrm_price_field WHERE contribution_type_id = @ms_id;\n";
           $setMSPFVNULL = "SET @mpfvID := '';\n";
           $ms_pfvId = "SELECT @mpfvID := id FROM civicrm_price_field_value WHERE price_field_id = @mpfID;\n";
           
@@ -243,13 +244,13 @@ Class CRM_par_import {
           
           $other_contribution_type = "INSERT INTO civicrm_contribution_type ( id, name, accounting_code, description, is_deductible, is_active, contact_id, parent_id ) values ( @other_id, 'Other',55, '{$organization_name}', 1, 1, @contactId, @parentId ) ON DUPLICATE KEY UPDATE id = @other_id, description = '{$organization_name}', contact_id = @contactId , parent_id = @parentId;\n";
 
-          $other_contribution_type .= "SELECT @other_id := id FROM civicrm_contribution_type WHERE name = 'Other' AND contact_id = @contactId AND parent_id = @parentId;\n";
+          //$other_id = "SELECT @other_id := id FROM civicrm_contribution_type WHERE name = 'Other' AND contact_id = @contactId AND parent_id = @parentId;\n";
           $setOPFINULL = "SET @opfID := '';\n";
           $other_price_fieldId = "SELECT @opfID := id FROM civicrm_price_field WHERE contribution_type_id = @other_id;\n";
 
           $insert_other_price_field = "INSERT INTO civicrm_price_field ( id, price_set_id, name, label, html_type, is_enter_qty, weight, is_display_amounts, options_per_line, is_active, is_required, visibility_id, contribution_type_id ) VALUES( @opfID, @setId, CONCAT('Other_', (SELECT description FROM civicrm_contribution_type WHERE contact_id = @contactId AND name = 'Other') ), 'Other', 'Text', 1, 3, 0, 1, 1, 0, 1, @other_id ) ON DUPLICATE KEY UPDATE id = @opfID, contribution_type_id =@other_id, price_set_id = @setId, name = CONCAT('Other_', (SELECT description FROM civicrm_contribution_type WHERE contact_id = @contactId AND name = 'Other') ) ;\n";
           
-          $insert_other_price_field .= "SELECT @opfID := id FROM civicrm_price_field WHERE contribution_type_id = @other_id;\n";
+          //$other_price_fieldId = "SELECT @opfID := id FROM civicrm_price_field WHERE contribution_type_id = @other_id;\n";
           
           $setOPFVNULL = "SET @opfvID := '';\n";
           $other_pfvId = "SELECT @opfvID := id FROM civicrm_price_field_value WHERE price_field_id = @opfID;\n";
@@ -1699,7 +1700,7 @@ INNER JOIN civicrm_contact cc ON cc.id = ccr.contact_id WHERE contribution_statu
 
         }
         //$setContrNULL = "SET @contrId := '';\n";
-        $contrId .= "SELECT @contrId := max(id) FROM civicrm_contribution WHERE contact_id = @contactId AND contribution_status_id = {$contributionStatus} AND total_amount = '{$total_amount}';\n";
+        //$contrId .= "SELECT @contrId := max(id) FROM civicrm_contribution WHERE contact_id = @contactId AND contribution_status_id = {$contributionStatus} AND total_amount = '{$total_amount}';\n";
         
         $orgId = "Select @orgId := contact_id_b from civicrm_relationship where contact_id_a = @contactId and relationship_type_id = ".SUPPORTER_RELATION_TYPE_ID.";\n";
          
