@@ -259,22 +259,30 @@ Class CRM_par_import {
             
           $insert_city = null;
           if(!empty($street_address) || !empty($city) || !empty($province) || !empty($postal_code) ) {     
-            $insert_city  = "INSERT INTO civicrm_address (contact_id, location_type_id, is_primary, street_address, city, postal_code, state_province_id, country_id  ) values (@contactId, 2, 1, '{$street_address}','{$city}','{$postal_code}',(SELECT MAX(id) FROM civicrm_state_province where abbreviation = '{$province}' AND country_id = 1039 ), 1039 ) ON DUPLICATE KEY UPDATE contact_id = @contactId, location_type_id = 2, street_address = '{$street_address}', city = '{$city}', postal_code = '{$postal_code}', state_province_id = (SELECT MAX(id) FROM civicrm_state_province where abbreviation = '{$province}' AND country_id = 1039 );\n" ;
+            $insert_city  = "SET @addressId := '';\n
+SELECT @addressId := id FROM civicrm_address WHERE contact_id = @contactId AND location_type_id = 2 AND is_primary = 1;\n
+INSERT INTO civicrm_address (id, contact_id, location_type_id, is_primary, street_address, city, postal_code, state_province_id, country_id  ) values (@addressId, @contactId, 2, 1, '{$street_address}','{$city}','{$postal_code}',(SELECT MAX(id) FROM civicrm_state_province where abbreviation = '{$province}' AND country_id = 1039 ), 1039 ) ON DUPLICATE KEY UPDATE contact_id = @contactId, location_type_id = 2, street_address = '{$street_address}', city = '{$city}', postal_code = '{$postal_code}', state_province_id = (SELECT MAX(id) FROM civicrm_state_province where abbreviation = '{$province}' AND country_id = 1039 );\n" ;
           } $street_address = $city = $province = $postal_code = null;
 
           $insert_email = null;
           if(!empty($email)) {     
-            $insert_email = "INSERT INTO civicrm_email ( contact_id, location_type_id, email, is_primary ) values (@contactId, 2, '{$email}',1 ) ON DUPLICATE KEY UPDATE contact_id = @contactId, email = '{$email}', location_type_id = 2;\n" ;
+            $insert_email = "SET @emailId := '';\n
+SELECT @emailId := id FROM civicrm_email WHERE contact_id = @contactId AND is_primary = 1;\n
+INSERT INTO civicrm_email (id, contact_id, location_type_id, email, is_primary ) values (@emailId, @contactId, 2, '{$email}',1 ) ON DUPLICATE KEY UPDATE contact_id = @contactId, email = '{$email}', location_type_id = 2;\n" ;
           } $email = null;
             
           $insert_phone = null;
           if(!empty($phone) ) {     
-            $insert_phone  = "INSERT INTO civicrm_phone (contact_id, location_type_id, is_primary, phone, phone_type_id) values (@contactId, 1, 1, '{$phone}', 1) ON DUPLICATE KEY UPDATE contact_id = @contactId, phone = '{$phone}', location_type_id = 1;\n" ;
+            $insert_phone  = "SET @phoneId := '';\n
+SELECT @phoneId := id FROM civicrm_phone WHERE contact_id = @contactId AND is_primary = 1;\n
+INSERT INTO civicrm_phone (id, contact_id, location_type_id, is_primary, phone, phone_type_id) values (@phoneId, @contactId, 1, 1, '{$phone}', 1) ON DUPLICATE KEY UPDATE contact_id = @contactId, phone = '{$phone}', location_type_id = 1;\n" ;
           } $phone = null;
             
           $insert_fax = null;
           if(!empty($fax) ) {     
-            $insert_fax  = "INSERT INTO civicrm_phone (contact_id, location_type_id, is_primary, phone, phone_type_id) values (@contactId, 3, 1, '{$fax}', 1) ON DUPLICATE KEY UPDATE contact_id = @contactId, phone = '{$fax}', location_type_id = 3;\n" ;
+            $insert_fax  = "SET @faxId := '';\n
+SELECT @faxId := id FROM civicrm_phone WHERE contact_id = @contactId AND location_type_id = 1 AND phone_type_id = 3;\n
+INSERT INTO civicrm_phone (id, contact_id, location_type_id, is_primary, phone, phone_type_id) values (@faxId, @contactId, 1, 0, '{$fax}', 3) ON DUPLICATE KEY UPDATE contact_id = @contactId, phone = '{$fax}';\n" ;
           } $fax = null;
             
           $insert_ms_number = null;
