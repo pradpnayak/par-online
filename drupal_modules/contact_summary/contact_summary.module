@@ -453,10 +453,13 @@ function contact_summary_civicrm_buildForm( $formName, &$form ) {
         }
     }
     
-    if ( $formName == 'CRM_Profile_Form_Edit' ) {
+    if ($formName == 'CRM_Profile_Form_Edit' || $formName == 'CRM_Contribute_Form_ContributionType') {
       $form->assign('maxCountLimit', CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME,
         'search_autocomplete_count'
       ));
+    }
+
+    if ($formName == 'CRM_Profile_Form_Edit') {
         foreach ( $form->_elements as $key => $value ) {
 
             if ( $value->_attributes['name'] == 'cancelURL' ) {
@@ -1705,6 +1708,10 @@ function contact_summary_civicrm_contactListQuery(&$query, $name, $context, $id)
   // restriction for organization those having the suppoter relationship.
   $pc = CRM_Utils_Array::value('pc', $_GET);
   if (!empty($pc)) {
+    $limit = 10;
+    if (CRM_Utils_Array::value('limit', $_GET)) {
+      $limit = $_GET['limit'];
+    }
     $query = " 
         SELECT DISTINCT(id), data, sort_name , email, phone, state_province, country
         FROM   (
@@ -1713,7 +1720,7 @@ function contact_summary_civicrm_contactListQuery(&$query, $name, $context, $id)
     
      
      WHERE ( email LIKE '" . $name . "' OR sort_name LIKE '" . $name . "'  )  AND cc.is_deleted = 0  AND contact_type = 'Organization'  AND cr.is_active = 1
-    LIMIT 0, 10 )
+    LIMIT 0, {$limit} )
     UNION
     ( SELECT 1 as exactFirst, cc.id as id, CONCAT_WS( ' :: ', sort_name, email, phone, street_address, city, ste.name, coy.name ) as data , sort_name, email, phone, street_address, city, ste.name as state_province, coy.name as country
     FROM   civicrm_contact cc LEFT JOIN civicrm_email eml ON ( cc.id = eml.contact_id AND eml.is_primary = 1 )  LEFT JOIN civicrm_phone phe ON ( cc.id = phe.contact_id AND phe.is_primary = 1 )  LEFT JOIN civicrm_address sts ON ( cc.id = sts.contact_id AND sts.is_primary = 1)   LEFT JOIN civicrm_state_province ste ON ( sts.state_province_id = ste.id  )   LEFT JOIN civicrm_country coy ON ( sts.country_id = coy.id  ) LEFT JOIN civicrm_relationship as cr ON ( cc.id = cr.contact_id_b AND cr.relationship_type_id = 13)
@@ -1721,10 +1728,10 @@ function contact_summary_civicrm_contactListQuery(&$query, $name, $context, $id)
      
      WHERE ( email LIKE '%" . $name . "%' OR sort_name LIKE '%" . $name . "%'  )  AND cc.is_deleted = 0  AND contact_type = 'Organization'  AND cr.is_active = 1
     ORDER BY sort_name
-    LIMIT 0, 10 )
+    LIMIT 0, {$limit} )
 ) t
 ORDER BY exactFirst, sort_name
-LIMIT    0, 10";
+LIMIT    0, {$limit}";
   }
 }
 
