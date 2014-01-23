@@ -454,7 +454,9 @@ function contact_summary_civicrm_buildForm( $formName, &$form ) {
     }
     
     if ( $formName == 'CRM_Profile_Form_Edit' ) {
-        
+      $form->assign('maxCountLimit', CRM_Core_BAO_Setting::getItem(CRM_Core_BAO_Setting::SYSTEM_PREFERENCES_NAME,
+        'search_autocomplete_count'
+      ));
         foreach ( $form->_elements as $key => $value ) {
 
             if ( $value->_attributes['name'] == 'cancelURL' ) {
