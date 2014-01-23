@@ -198,16 +198,16 @@ Class CRM_par_import {
           
           $parent_contribution_type = "INSERT INTO civicrm_contribution_type ( id, name, accounting_code, description, is_deductible, is_active, contact_id ) values ( @parentId, '{$organization_name}',55, '{$organization_name}', 1, 1, @contactId ) ON DUPLICATE KEY UPDATE id = @parentId, name = '{$organization_name}', description = '{$organization_name}', contact_id = @contactId;\n";
           
-          //$parent_id =  "SELECT @parentId := id FROM civicrm_contribution_type WHERE contact_id = @contactId AND parent_id IS NULL;\n";
+          $parent_id =  "SELECT @parentId := id FROM civicrm_contribution_type WHERE contact_id = @contactId AND parent_id IS NULL;\n";
           $setGenNULL = "SET @general_id := '';\n";
           $general_id = "SELECT @general_id := id FROM civicrm_contribution_type WHERE name = 'General' AND contact_id = @contactId AND parent_id = @parentId;\n";
           $general_contribution_type = "INSERT INTO civicrm_contribution_type ( id, name, accounting_code, description, is_deductible, is_active, contact_id, parent_id ) values ( @general_id, 'General',55, '{$organization_name}', 1, 1, @contactId, @parentId ) ON DUPLICATE KEY UPDATE id = @general_id, description = '{$organization_name}', contact_id = @contactId , parent_id = @parentId ;\n";
           
           //$general_id = "SELECT @general_id := id FROM civicrm_contribution_type WHERE name = 'General' AND contact_id = @contactId AND parent_id = @parentId;\n";
           $setSetNULL = "SET @setId := '';\n";
-          $price_setId = "SELECT @setId := id FROM civicrm_price_set WHERE name = '{$organization_name}' AND title = '{$organization_name}';\n";
+          $price_setId = "SELECT @setId := id FROM civicrm_price_set WHERE contribution_type_id = @parentId;\n";
 
-          $insert_price_set = "INSERT INTO civicrm_price_set ( id, name, title, is_active ) VALUES ( @setId, '{$organization_name}', '{$organization_name}', 1 ) ON DUPLICATE KEY UPDATE id = @setId, name = '{$organization_name}', title = '{$organization_name}';\n";
+          $insert_price_set = "INSERT INTO civicrm_price_set ( id, name, title, is_active, contribution_type_id ) VALUES ( @setId, '{$organization_name}', '{$organization_name}', 1, @parentId ) ON DUPLICATE KEY UPDATE id = @setId, name = '{$organization_name}', title = '{$organization_name}';\n";
           
           //$price_setId = "SELECT @setId := id FROM civicrm_price_set WHERE name = '{$organization_name}' AND title = '{$organization_name}';\n";
           $setGPFNULL = "SET @gpfID := '';\n";
