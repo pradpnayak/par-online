@@ -78,12 +78,14 @@
 {literal}
 <script type="text/javascript">
 var dataUrl        = "{/literal}{$dataURL}{literal}";
+var maxLimit = "{/literal}{$maxCountLimit}{literal}";
 var newContactText = "{/literal}({ts}new contact record{/ts}){literal}";
 cj('#organization_name').autocomplete( dataUrl, { 
                                       width        : 250, 
                                       selectFirst  : false,
                                       matchCase    : true, 
-                                      matchContains: true
+                                      matchContains: true,
+				      max          : maxLimit
     }).result( function(event, data, formatted) {
         var foundContact   = ( parseInt( data[1] ) ) ? cj( "#contact_id" ).val( data[1] ) : cj( "#contact_id" ).val('');
         if ( ! foundContact.val() ) {
@@ -128,11 +130,13 @@ cj("input#organization_name").click( function( ) {
 <script type="text/javascript">
 var dataUrl        = "{/literal}{$dataURLParentID}{literal}";
 var newContactText = "{/literal}({ts}new contact record{/ts}){literal}";
+var maxLimit = "{/literal}{$maxCountLimit}{literal}";
 cj('#parent_contribution_type').autocomplete( dataUrl, { 
                                       width        : 250, 
                                       selectFirst  : false,
                                       matchCase    : true, 
-                                      matchContains: true
+                                      matchContains: true,
+				      max          : maxLimit
     }).result( function(event, data, formatted) {
         var foundContact   = ( parseInt( data[1] ) ) ? cj( "#parent_id" ).val( data[1] ) : cj( "#parent_id" ).val('');
         if ( ! foundContact.val() ) {
