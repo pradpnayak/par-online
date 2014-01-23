@@ -1707,11 +1707,11 @@ function contact_summary_civicrm_contactListQuery(&$query, $name, $context, $id)
   
   // restriction for organization those having the suppoter relationship.
   $pc = CRM_Utils_Array::value('pc', $_GET);
+  $limit = 10;
+  if (CRM_Utils_Array::value('limit', $_GET)) {
+    $limit = $_GET['limit'];
+  }
   if (!empty($pc)) {
-    $limit = 10;
-    if (CRM_Utils_Array::value('limit', $_GET)) {
-      $limit = $_GET['limit'];
-    }
     $query = " 
         SELECT DISTINCT(id), data, sort_name , email, phone, state_province, country
         FROM   (
@@ -1732,6 +1732,17 @@ function contact_summary_civicrm_contactListQuery(&$query, $name, $context, $id)
 ) t
 ORDER BY exactFirst, sort_name
 LIMIT    0, {$limit}";
+  }
+  if ($context == 'supporter') {
+    $query = "SELECT 1 as exactFirst, cc.id as id, CONCAT_WS( ' :: ', sort_name, email, phone, street_address, city, ste.name, coy.name, ms_number_16 ) as data , sort_name, email, phone, street_address, city, ste.name as state_province, coy.name as country
+    FROM   civicrm_contact cc LEFT JOIN civicrm_email eml ON ( cc.id = eml.contact_id AND eml.is_primary = 1 )  LEFT JOIN civicrm_phone phe ON ( cc.id = phe.contact_id AND phe.is_primary = 1 )  LEFT JOIN civicrm_address sts ON ( cc.id = sts.contact_id AND sts.is_primary = 1)   LEFT JOIN civicrm_state_province ste ON ( sts.state_province_id = ste.id  )   LEFT JOIN civicrm_country coy ON ( sts.country_id = coy.id  ) 
+
+LEFT JOIN civicrm_value_other_details_7 cv ON cv.entity_id = cc.id
+    
+     
+     WHERE ( ms_number_16 LIKE '%" . $name . "%'  )  AND cc.is_deleted = 0  AND contact_type = 'Organization'
+    ORDER BY sort_name
+    LIMIT 0, {$limit}";
   }
 }
 
