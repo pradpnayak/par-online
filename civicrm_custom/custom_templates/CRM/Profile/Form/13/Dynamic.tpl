@@ -300,12 +300,14 @@ cj(document).ready(function(){
 {/literal}    
 {/if}
 {literal}
+    var maxLimit = "{/literal}{$maxCountLimit}{literal}";
     var dataUrl = "{/literal}{crmURL p='civicrm/ajax/rest' h=0 q="className=CRM_Contact_Page_AJAX&fnName=getContactList&json=1&org=1&context=supporter" }{literal}"; 
     cj("#supporter").autocomplete( dataUrl, { 
                                   width        : 250, 
                                   selectFirst  : false,
                                   matchCase    : true, 
-                                  matchContains: true
+                                  matchContains: true,
+				  max          : maxLimit
     }).result( function(event, data, formatted) { 
        var foundContact = cj( "input[name=supporter_id]" ).val( data[1] );
     });
