@@ -166,7 +166,7 @@ LEFT JOIN civicrm_relationship ccr ON ccr.contact_id_a = contact_a.id ";
         }
 
         // UCCPAR-427  
-        $clause[] = " relationship_type_id = 13 ";
+        $clause[] = " relationship_type_id = " . SUPPORTER_RELATION_TYPE_ID;
         if (array_key_exists('contact_sub_type', $this->_formValues)) {
           $clause[] = " contact_id_b = " . $this->_formValues['contact_sub_type'];
         }
