@@ -51,6 +51,7 @@ implements CRM_Contact_Form_Search_Interface {
                                  ts('Current Month')    => 'mtd_total',
                                  ts('Upcoming Month')   => 'upcoming',
                                  ts('Year To Date')     => 'total',) ;
+        $this->_congregations = findContactCongregation();
     }
 
     function buildForm( &$form ) {
@@ -68,6 +69,15 @@ implements CRM_Contact_Form_Search_Interface {
                     'email',
                     ts( 'Primary E-mail' ),
                     true );
+        $elementArray = array('first_name', 'last_name','email');
+        if (!empty($this->_congregations) && count($this->_congregations) > 1) {
+          $form->add('select',
+            'contact_sub_type',
+            ts('Congregation'),
+            $this->_congregations 
+          );
+          $elementArray[] = 'contact_sub_type';
+        }
         /**
          * You can define a custom title for the search form
          */
@@ -77,7 +87,7 @@ implements CRM_Contact_Form_Search_Interface {
          * if you are using the standard template, this array tells the template what elements
          * are part of the search criteria
          */
-        $form->assign( 'elements', array( 'first_name', 'last_name','email') );
+        $form->assign('elements', $elementArray);
     }
 
     function all( $offset = 0, $rowcount = 0, $sort = null,
@@ -105,7 +115,8 @@ LEFT JOIN civicrm_group_contact  AS supporter   ON ( contact_a.id = supporter.co
 
 LEFT JOIN civicrm_email  AS email  ON ( email.contact_id = contact_a.id AND email.is_primary = 1 )
 
-LEFT JOIN civicrm_value_envelope_13  AS envelope  ON ( envelope.entity_id  = contact_a.id )";
+LEFT JOIN civicrm_value_envelope_13  AS envelope  ON ( envelope.entity_id  = contact_a.id )
+LEFT JOIN civicrm_relationship ccr ON ccr.contact_id_a = contact_a.id ";
     }
     
     function where( $includeContactIDs = false ) {
@@ -152,6 +163,15 @@ LEFT JOIN civicrm_value_envelope_13  AS envelope  ON ( envelope.entity_id  = con
             $params[$count] = array( $email, 'String' );
             $clause[] = "email.email LIKE %{$count}";
             $count++;
+        }
+
+        // UCCPAR-427  
+        $clause[] = " relationship_type_id = 13 ";
+        if (array_key_exists('contact_sub_type', $this->_formValues)) {
+          $clause[] = " contact_id_b = " . $this->_formValues['contact_sub_type'];
+        }
+        elseif(CRM_Utils_Request::retrieve('force', 'Integer') && count($this->_congregations) > 1) {
+          $clause[] = " contact_id_b = " . key($this->_congregations);
         }
 
         if ( ! empty( $clause ) ) {
