@@ -131,14 +131,18 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         $default['pricesetid'] = $this->get('priceSetId');
         $default['contribution_type'] = $this->get('contributionType');     
         $default['contribution_id']   = $this->get('contributionId');
+        $query = 'SELECT * FROM civicrm_value_par_account_details_6 WHERE entity_id = ' . $cid;
+        $dao = CRM_Core_DAO::executeQuery($query);
+        if ($dao->fetch()) {
+            $default['bank'] = $dao->bank_number_11;
+            $default['branch'] = $dao->branch_number_12;
+            $default['account'] = $dao->par_account_number_13;
+        }
         foreach( $this->_recurringDetails as $recurKey => $recurValue ){
             $default[ 'payment_instrument' ] = $paymentInstrument[ $recurValue[ 'installment' ][0][ 'payment_instrument' ] ];
             $default[ 'payment_status' ]     = $recurValue[ 'contribution_status_id' ];
             $default[ 'old_status' ]         = $recurValue[ 'contribution_status_id' ];
             $default[ 'cc_type' ]            = $recurValue[ 'installment' ][0][ $bankDetails[ 'type' ] ];
-            $default[ 'bank' ]               = $recurValue[ 'installment' ][0][ $bankDetails[ 'bank' ] ];
-            $default[ 'branch' ]             = $recurValue[ 'installment' ][0][ $bankDetails[ 'branch' ] ];
-            $default[ 'account' ]            = $recurValue[ 'installment' ][0][ $bankDetails[ 'account' ] ];
             break;
         }
         $contributions = $this->getRecurringContribution( $cid, true );
