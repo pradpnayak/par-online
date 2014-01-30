@@ -3,9 +3,8 @@
 {assign var="thisMonth" value=$details.month}
 {assign var="thisYear" value=$details.year}
 {assign var="thisMonthAnticipated" value=$details.monthAnticipated}
-
 <div id=donation>
-    {if $congregationName.$opId neq 'dontcare'}
+    {if $congregationName.$opId}
       {assign var="extraUrlParam" value="&congregation_id=$opId"}
       <p class=subtitle><b>{$congregationName.$opId}</b></p>
     {else}
