@@ -166,6 +166,16 @@ function contact_summary_civicrm_dashboard( $contactID, &$contentPlacement  ) {
    require_once 'CRM/Contact/BAO/GroupContact.php';
    $search = array();
    if ( CRM_Contact_BAO_GroupContact::isContactInGroup( $contactID , PAR_ADMIN_GROUP_ID ) ) {
+     $congregations = findContactCongregation();
+     $congregationTd = '';
+     if (count($congregations) > 1) {
+       $congregationLabel = "<td class='label'><label for='contact_sub_type'>Congregation</label></td>";
+       $congregationTd .= '<td class="label"><select class="form-select valid" id="contact_sub_type" name="contact_sub_type">';
+       foreach ($congregations as $key => $value) {
+         $congregationTd .= "<option value='{$key}'>{$value}</option>";
+       }
+       $congregationTd .= '</select></td>';
+     }
        $search['Quick Search'] = "<div id ='quick_search'><form id='Custom' name='Custom' method='post' action=".CRM_Utils_System::url( 'civicrm/contact/search/custom',"reset=1&csid=18").">
 
 <div class='crm-block crm-form-block crm-contact-custom-search-form-block'>
@@ -182,7 +192,7 @@ function contact_summary_civicrm_dashboard( $contactID, &$contentPlacement  ) {
                                                     <td class='label'><label for='last_name'>Last Name</label></td>
                                             
                                                     <td class='label'><label for='email'>Primary E-mail</label></td>
-                                            
+                                                   {$congregationLabel} 
                                 	    </tr>
  	    <tr class='customFields'>
 	                   
@@ -195,6 +205,7 @@ function contact_summary_civicrm_dashboard( $contactID, &$contentPlacement  ) {
                                    
                            
                     <td class='label'><input type='text' class='form-text' id='email' name='email'></td>
+                    {$congregationTd}
                                             
                                    
             	    <td class='crm-submit-buttons'>
