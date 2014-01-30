@@ -1786,3 +1786,30 @@ function mergeContacts($contactA, $contactB, $postHook = TRUE) {
   // UCCPAR-386
   updateContactExtIdentifier($contactA);
 }
+
+function findContactCongregation($cid = NULL) {
+  if (!$cid) {
+    $cid = CRM_Core_Session::singleton()->get('userID');
+  }
+  if (!$cid) {
+    return NULL;
+  }
+  $congregations = array();
+  $query = 'SELECT contact_id_b, organization_name
+FROM `civicrm_relationship`
+LEFT JOIN civicrm_contact cc ON cc.id = contact_id_b
+WHERE contact_id_a = %1 AND `relationship_type_id` = %2 AND is_active = 1
+ORDER BY organization_name';
+  $queryParams = array(
+    1 => array($cid, 'Integer'),
+    2 => array(PAR_ADMIN_RELATION_TYPE_ID, 'Integer'),
+  );
+  
+  $dao = CRM_Core_DAO::executeQuery($query, $queryParams);
+  if ($dao->N > 1) {
+    while ($dao->fetch()) {
+      $congregations[$dao->contact_id_b] = $dao->organization_name;
+    }
+  }
+  return $congregations;
+}
