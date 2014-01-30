@@ -6,7 +6,10 @@
 
 <div id=donation>
     {if $congregationName.$opId neq 'dontcare'}
+      {assign var="extraUrlParam" value="&congregation_id=$opId"}
       <p class=subtitle><b>{$congregationName.$opId}</b></p>
+    {else}
+      {assign var="extraUrlParam" value=""}
     {/if}
     <p class=subtitle><b>Current Month's Donations</b></p>
     <table style = "width:250px">
@@ -49,7 +52,7 @@
       </td>
     </tr>
     <tr>
-      <td><div><a href={$mtd}>More Details</a></div></td>
+      <td><div><a href={$mtd}{$extraUrlParam}>More Details</a></div></td>
       <td></td>
     </tr>
     </table>
@@ -94,7 +97,7 @@
       </td>
     </tr>
     <tr>
-      <td><div><a href={$mAnti}>More Details</a></div></td>
+      <td><div><a href={$mAnti}{$extraUrlParam}>More Details</a></div></td>
       <td></td>
     </tr>
     </table>
@@ -139,7 +142,7 @@
       </td>
     </tr>
     <tr>
-      <td><div><a href={$ytd}>More Details</a></div></td>
+      <td><div><a href={$ytd}{$extraUrlParam}>More Details</a></div></td>
       <td></td>
     </tr>
     </table>
