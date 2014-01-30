@@ -190,7 +190,23 @@ class CRM_Report_Form_Contribute_RelatedDetail extends CRM_Report_Form {
     }
 
     function preProcess( ) {
-        parent::preProcess( );
+      $this->_congregationId = CRM_Utils_Request::retrieve('congregation_id', 'Integer');
+      if (CRM_Utils_Array::value('congregation_id', $this->_submitValues)) {
+        $this->_congregationId = $this->_submitValues['congregation_id'];
+      }
+
+      parent::preProcess( );
+    }
+    
+    function buildQuickForm() {
+      parent::buildQuickForm();
+      if (in_array($this->_id, array(38, 39, 40))) {
+        $this->add('hidden', 'congregation_id');
+        if ($this->_congregationId) {
+          $defaults['congregation_id'] = $this->_congregationId;
+          $this->setDefaults($defaults);
+        }
+      }
     }
 
     function select( ) {
@@ -296,6 +312,9 @@ class CRM_Report_Form_Contribute_RelatedDetail extends CRM_Report_Form {
             LEFT JOIN civicrm_line_item {$this->_aliases['civicrm_line_item']} 
                    ON {$this->_aliases['civicrm_contribution']}.id = {$this->_aliases['civicrm_line_item']}.entity_id AND {$this->_aliases['civicrm_line_item']}.entity_table = '{$tableName}'\n";
             
+        }
+        if ($this->_congregationId) {
+          $this->_from .= " LEFT JOIN civicrm_relationship civicrm_relationship_a ON civicrm_relationship_a.contact_id_a = relContact.related_id ";
         }
     }
 
@@ -464,6 +483,10 @@ class CRM_Report_Form_Contribute_RelatedDetail extends CRM_Report_Form {
                 $startDate = date( 'Y-m-d',strtotime("$endDate +1 day -1 month"));
             }
             $this->_where .= " AND {$this->_aliases['civicrm_contribution']}.receive_date BETWEEN '$startDate' AND '$endDate' ";
+        }
+        
+        if ($this->_congregationId) {
+          $this->_where .= ' AND civicrm_relationship_a.relationship_type_id = ' . SUPPORTER_RELATION_TYPE_ID . ' AND civicrm_relationship_a.contact_id_b = ' . $this->_congregationId;
         }
     }
 }
