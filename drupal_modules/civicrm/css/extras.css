@@ -60,7 +60,7 @@ td.contact_sub_type {
     float:left;   
 }
 
-.customFields td input, .customFields td select {
+.customFields td input {
     width: 80px;
     float:left;   
 }
