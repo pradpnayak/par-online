@@ -60,7 +60,7 @@ td.contact_sub_type {
     float:left;   
 }
 
-.customFields td input {
+.customFields td input, .customFields td select {
     width: 80px;
     float:left;   
 }
@@ -158,4 +158,13 @@ table#donation_summary td#priceset-details #priceset .crm-section .content{
 .mnth-donate {
     clear: both;
     padding-top: 15px;
+}
+
+.maindiv {
+	float: left;
+}
+
+.donationSummaryDiv #donation {
+	float: left;
+	width: 33%;
 }
