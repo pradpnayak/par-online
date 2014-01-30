@@ -13,21 +13,21 @@ class CRM_Contact_Page_DonationSummary extends CRM_Core_Page {
       $cid = $_SESSION['CiviCRM']['userID'];
     }
     require_once 'CRM/Contribute/BAO/ContributionType.php';
-    //$cid = 13479;
     if( $cid ){
-      $query = "SELECT related_id, contact_sub_type FROM custom_relatedContacts
-           LEFT JOIN civicrm_contact ON civicrm_contact.id = custom_relatedContacts.related_id WHERE contact_id = {$cid}";
-      $dao    =  CRM_Core_DAO::executeQuery( $query );
- 
-      while( $dao->fetch() ){
-        if( $dao->contact_sub_type  ){
-          $cids[ $dao->related_id ] = $dao->related_id;
-        }
+      require_once('CRM/Contact/BAO/GroupContact.php');
+      if ( CRM_Contact_BAO_GroupContact::isContactInGroup($cid, PAR_ADMIN_GROUP_ID)) {
+        $congregation = findContactCongregation($cid);
       }
-      $summary = CRM_Contact_Page_DonationSummary::getSummary( $cid, 'month');
-      $summary = CRM_Contact_Page_DonationSummary::getSummary( $cid, 'monthAnticipated', $summary);
-      $summary = CRM_Contact_Page_DonationSummary::getSummary( $cid, 'year', $summary);
-      $summary = CRM_Contact_Page_DonationSummary::getSummaryAverage( $cid, $summary );
+      else {
+        $congregation = array(0 => 'dontcare');
+      }
+      $summary = NULL;
+      foreach($congregation as $key => $dontCare) {
+        $summary = CRM_Contact_Page_DonationSummary::getSummary( $cid, 'month', $summary, $key);
+        $summary = CRM_Contact_Page_DonationSummary::getSummary( $cid, 'monthAnticipated', $summary, $key);
+        $summary = CRM_Contact_Page_DonationSummary::getSummary( $cid, 'year', $summary, $key);
+        $summary = CRM_Contact_Page_DonationSummary::getSummaryAverage( $cid, $summary, $key);
+      }
     }
     $smarty =  CRM_Core_Smarty::singleton( );
         
@@ -54,24 +54,39 @@ class CRM_Contact_Page_DonationSummary extends CRM_Core_Page {
     if ( !empty( $mAnti ) ) {
       $smarty->_tpl_vars['mAnti'] = $mAnti;
     }
+     
     if( $summary ){
-      $smarty->_tpl_vars['thisYear']  = $summary['year'];
-      $smarty->_tpl_vars['thisMonth'] = $summary['month'];
-      $smarty->_tpl_vars['thisMonthAnticipated'] = $summary['monthAnticipated'];
+      $smarty->_tpl_vars['summaryDetails'] = $summary;
+      $smarty->_tpl_vars['congregationName'] = $congregation;
     }
     parent::run();
   }
     
-  static function getSummary( $cid, $duration, $summary = NULL) {
+  static function getSummary( $cid, $duration, $summary = NULL, $congID = NULL) {
     civicrm_initialize();
-    if (!CRM_Utils_Array::value($duration ,$summary)) {
-      $summary[$duration] = array(
+    $k = $congID ? $congID : $cid;
+    if (!CRM_Utils_Array::value($duration ,CRM_Utils_Array::value($k, $summary))) {
+      $summary[$k][$duration] = array(
         'General' => 0,
         'M&S' => 0,
         'Other' => 0
       );
     }
     $total   = 0;
+    $select = ' SELECT cct.label, SUM(cct.line_total) sm ';
+    $clause = array(
+      'donation.id IS NOT NULL',
+      'org_supporter.is_active = 1',
+      'cc.is_deleted != 1',
+      'donation.is_test = 0',
+      'org_supporter.relationship_type_id = ' . SUPPORTER_RELATION_TYPE_ID,
+      'crc.contact_id = ' . $cid,          
+    );
+    if  ($congID) {
+      $clause[] = 'crc.related_id = ' . $congID;
+    }
+    $tableName = 'civicrm_contribution';
+    $status = 1;
     if( $duration == 'month' ){
       $todaysDay = date('d',time());
       if( $todaysDay >= 20 ){
@@ -81,62 +96,32 @@ class CRM_Contact_Page_DonationSummary extends CRM_Core_Page {
         $endDate   = date( 'Y-m-d', mktime( 0, 0, 0, date( 'm', time() ), 19, date( 'Y', time() ) ) );
         $startDate = date( 'Y-m-d',strtotime("$endDate +1 day -1 month"));
       }
-      $query = "SELECT cct.label, SUM(cct.line_total) sm FROM custom_relatedContacts crc
-INNER JOIN civicrm_contact cc ON cc.id = crc.related_id 
-INNER JOIN civicrm_relationship org_supporter ON org_supporter.contact_id_b = crc.related_id
-INNER JOIN civicrm_contribution donation ON org_supporter.contact_id_a = donation.contact_id
-INNER JOIN civicrm_line_item cct ON cct.entity_id = donation.id
-WHERE crc.contact_id = ".$cid."
-AND org_supporter.relationship_type_id = ".SUPPORTER_RELATION_TYPE_ID."
-AND donation.id IS NOT NULL
-AND org_supporter.is_active = 1
-AND donation.receive_date BETWEEN '$startDate' AND '$endDate'
-AND donation.contribution_status_id = 1
-AND cc.is_deleted != 1
-AND donation.is_test = 0
-AND cct.entity_table = 'civicrm_contribution'
-GROUP BY cct.label";
+      $clause[] = "donation.receive_date BETWEEN '$startDate' AND '$endDate'";
     } 
     elseif ($duration == 'monthAnticipated') {
-      $query = "SELECT cct.label, SUM(cct.line_total) sm FROM custom_relatedContacts crc
-INNER JOIN civicrm_contact cc ON cc.id = crc.related_id 
-INNER JOIN civicrm_relationship org_supporter ON org_supporter.contact_id_b = crc.related_id
-INNER JOIN civicrm_contribution_recur donation ON org_supporter.contact_id_a = donation.contact_id
-INNER JOIN civicrm_line_item cct ON cct.entity_id = donation.id
-WHERE crc.contact_id = ".$cid."
-AND org_supporter.relationship_type_id = ".SUPPORTER_RELATION_TYPE_ID."
-AND donation.id IS NOT NULL
-AND org_supporter.is_active = 1
-AND donation.contribution_status_id = 5
-AND cc.is_deleted != 1
-AND donation.is_test = 0
-AND cct.entity_table = 'civicrm_contribution_recur'
-GROUP BY cct.label";
+      $status = 5;
+      $tableName = 'civicrm_contribution_recur';
     } 
     else {
-      $query = "SELECT cct.label, SUM(cct.line_total) sm FROM custom_relatedContacts crc
+      $clause[] = 'YEAR( donation.receive_date ) = YEAR(NOW())';
+    }
+
+    $clause [] = "donation.contribution_status_id = {$status}";
+    $clause [] = "cct.entity_table = '{$tableName}'";
+    $from = " FROM custom_relatedContacts crc
 INNER JOIN civicrm_contact cc ON cc.id = crc.related_id 
 INNER JOIN civicrm_relationship org_supporter ON org_supporter.contact_id_b = crc.related_id
-INNER JOIN civicrm_contribution donation ON org_supporter.contact_id_a = donation.contact_id
-INNER JOIN civicrm_line_item cct ON cct.entity_id = donation.id
-WHERE crc.contact_id = ".$cid."
-AND org_supporter.relationship_type_id = ".SUPPORTER_RELATION_TYPE_ID."
-AND donation.id IS NOT NULL
-AND org_supporter.is_active = 1
-AND YEAR( donation.receive_date ) = YEAR(NOW())
-AND donation.contribution_status_id = 1
-AND cc.is_deleted != 1
-AND donation.is_test = 0
-AND cct.entity_table = 'civicrm_contribution'
-GROUP BY cct.label";
-    }
+INNER JOIN {$tableName} donation ON org_supporter.contact_id_a = donation.contact_id
+INNER JOIN civicrm_line_item cct ON cct.entity_id = donation.id ";
+    $Where = ' WHERE ' . implode(' AND ', $clause);
+    $query = $select . $from . $Where . ' GROUP BY cct.label ';
     $dao = CRM_Core_DAO::executeQuery( $query );
     while( $dao->fetch() ){
-      $summary[$duration][$dao->label] = $dao->sm;
+      $summary[$k][$duration][$dao->label] = $dao->sm;
       $total += $dao->sm;
     }
-    $summary[$duration]['total'] = $total;
-    $summary[$duration]['avg'] = $total;
+    $summary[$k][$duration]['total'] = $total;
+    $summary[$k][$duration]['avg'] = $total;
     return $summary;
   }
 
@@ -148,7 +133,7 @@ GROUP BY cct.label";
     }
   }
     
-  static function getSummaryAverage( $cid, $summary ) { 
+  static function getSummaryAverage( $cid, $summary, $congID = NULL ) { 
     //  foreach ( $cids as $id ) {
     $todaysDay = date('d',time());
     if( $todaysDay >= 20 ){
@@ -171,6 +156,9 @@ AND donation.receive_date BETWEEN '$startDate' AND '$endDate'
 AND donation.contribution_status_id = 1
 AND cc.is_deleted != 1
 AND donation.is_test = 0";
+    if ($congID) {
+      $query .= " AND crc.related_id = {$congID}";
+    }
     $mcount = CRM_Core_DAO::singleValueQuery( $query );
 
     $query = "SELECT count(DISTINCT(donation.contact_id)) count FROM custom_relatedContacts crc
@@ -185,6 +173,9 @@ AND donation.contribution_status_id = 5
 AND cc.is_deleted != 1
 AND donation.is_test = 0";
 
+    if ($congID) {
+      $query .= " AND crc.related_id = {$congID}";
+    }
     $acount = CRM_Core_DAO::singleValueQuery( $query );
     $query = "SELECT count(DISTINCT(donation.contact_id)) count FROM custom_relatedContacts crc
 INNER JOIN civicrm_contact cc ON cc.id = crc.related_id 
@@ -199,15 +190,19 @@ AND donation.contribution_status_id = 1
 AND cc.is_deleted != 1
 AND donation.is_test = 0";
       
+    if ($congID) {
+      $query .= " AND crc.related_id = {$congID}";
+    }
     $ycount = CRM_Core_DAO::singleValueQuery( $query );
-    if ( !empty($summary['month']['avg']) ) {
-      $summary['month']['avg'] = $summary['month']['avg']/$mcount;
+    $k = $congID ? $congID : $cid;
+    if ( !empty($summary[$k]['month']['avg']) ) {
+      $summary[$k]['month']['avg'] = $summary[$k]['month']['avg']/$mcount;
     }
-    if ( !empty($summary['monthAnticipated']['avg']) ) {
-      $summary['monthAnticipated']['avg'] = $summary['monthAnticipated']['avg']/$acount;
+    if ( !empty($summary[$k]['monthAnticipated']['avg']) ) {
+      $summary[$k]['monthAnticipated']['avg'] = $summary[$k]['monthAnticipated']['avg']/$acount;
     }
-    if ( !empty($summary['year']['avg']) ) {
-      $summary['year']['avg'] = $summary['year']['avg']/$ycount;
+    if ( !empty($summary[$k]['year']['avg']) ) {
+      $summary[$k]['year']['avg'] = $summary[$k]['year']['avg']/$ycount;
     }
     return $summary;
   }

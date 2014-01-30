@@ -1,4 +1,13 @@
+<div class='donationSummaryDiv'>
+{foreach from=$summaryDetails item=details key=opId}
+{assign var="thisMonth" value=$details.month}
+{assign var="thisYear" value=$details.year}
+{assign var="thisMonthAnticipated" value=$details.monthAnticipated}
+
 <div id=donation>
+    {if $congregationName.$opId neq 'dontcare'}
+      <p class=subtitle><b>{$congregationName.$opId}</b></p>
+    {/if}
     <p class=subtitle><b>Current Month's Donations</b></p>
     <table style = "width:250px">
     {foreach from=$thisMonth item=field key=rowName}
@@ -134,4 +143,6 @@
       <td></td>
     </tr>
     </table>
+</div>
+{/foreach}
 </div>
