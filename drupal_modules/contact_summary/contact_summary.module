@@ -696,7 +696,7 @@ AND a.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD
         );
         $result = civicrm_api( 'relationship', 'get', $relationGetParam );
         foreach ($result['values'] as $vals) {
-          if ($vals['relationship_type_id'] == SUPPORTER_RELATION_TYPE_ID) {
+          if ($vals['relationship_type_id'] == SUPPORTER_RELATION_TYPE_ID && $vals['contact_id_b'] != $_SESSION['CiviCRM']['view.id']) {
             $names[] = $vals['display_name'];
           }
         }
