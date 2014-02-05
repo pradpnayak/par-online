@@ -100,38 +100,38 @@ function contact_summary_civicrm_searchTasks( $objectName, &$tasks ) {
 
 function contact_summary_civicrm_links( $op, $objectName, $objectId, &$links ) {
     require_once 'CRM/Contact/BAO/GroupContact.php';
-    
-    if ( !empty( $links ) ) {
+    if ($op == 'create.new.shorcuts' ) {
+      if ( !empty( $links ) ) {
         foreach ( $links as $key => $value ) {
-            // hide from all admin users, may be required for phase 2
+          // hide from all admin users, may be required for phase 2
  
-            // $type = explode("-&nbsp;", $value['title'] );
-            // if( !empty( $type['1'] ) ) {
-            //     if ( "{$type['1']}" == 'Denomination' ) {
-            //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
-            //     }
-            //     if (  "{$type['1']}" == 'Pastoral Charge' ) {
-            //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
-            //     }
-            //     if (  "{$type['1']}" == 'Presbytery' ) {
-            //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
-            //     }
-            //     if (  "{$type['1']}" == 'Conference' ) {
-            //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
-            //     }
-            //     if (  "{$type['1']}" == 'Congregation' ) {
-            //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
-            //     }
-            // } else  if ( $value['title'] == 'Organization' ) {
-            //     $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&reset=1");
-            // }
-            // else 
-            unset($links[$key]);
-         }
-    } 
+          // $type = explode("-&nbsp;", $value['title'] );
+          // if( !empty( $type['1'] ) ) {
+          //     if ( "{$type['1']}" == 'Denomination' ) {
+          //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
+          //     }
+          //     if (  "{$type['1']}" == 'Pastoral Charge' ) {
+          //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
+          //     }
+          //     if (  "{$type['1']}" == 'Presbytery' ) {
+          //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
+          //     }
+          //     if (  "{$type['1']}" == 'Conference' ) {
+          //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
+          //     }
+          //     if (  "{$type['1']}" == 'Congregation' ) {
+          //         $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&cst=".$type['1']."&reset=1");
+          //     }
+          // } else  if ( $value['title'] == 'Organization' ) {
+          //     $links[$key]['url'] = CRM_Utils_System::url('civicrm/profile/create',"gid=11&reset=1");
+          // }
+          // else 
+          unset($links[$key]);
+        }
+      } 
     
-    $sysadmins = getSysAdmins();
-    if ( in_array( $_SESSION[ 'CiviCRM' ][ 'userID' ], $sysadmins ) ) {
+      $sysadmins = getSysAdmins();
+      if ( in_array( $_SESSION[ 'CiviCRM' ][ 'userID' ], $sysadmins ) ) {
         $links[20]['title'] = 'RBC Import';
         $links[20]['url'] = CRM_Utils_System::url('civicrm/contribute/rbc/import',"reset=1");
         $links[21]['title'] = 'RBC Export';
@@ -142,24 +142,25 @@ function contact_summary_civicrm_links( $op, $objectName, $objectId, &$links ) {
         $links[25]['url'] = CRM_Utils_System::url('civicrm/contribute/search',"reset=1");
         $links[26]['title'] = 'Import Donations';
         $links[26]['url'] = CRM_Utils_System::url('civicrm/contribute/import',"reset=1");
-    }
-    if ( CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], DENOMINATION_ADMIN_GROUP_ID ) ) {
-	$links[0]['title'] = 'Add New Donor / Supporter / Member';
+      }
+      if ( CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], DENOMINATION_ADMIN_GROUP_ID ) ) {
+        $links[0]['title'] = 'Add New Donor / Supporter / Member';
         $links[0]['url']   = CRM_Utils_System::url('civicrm/profile/create',"gid=13&reset=1");
         $links[22]['title'] = 'View Donor / Supporter / Member';
         $links[22]['url'] = CRM_Utils_System::url( 'civicrm/contact/search/custom',"reset=1&csid=16&force=1");
-    } else if ( CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], PAR_ADMIN_GROUP_ID ) ) {
-	$links[0]['title'] = 'Add New Donor / Supporter / Member';
+      } else if ( CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], PAR_ADMIN_GROUP_ID ) ) {
+        $links[0]['title'] = 'Add New Donor / Supporter / Member';
         $links[0]['url']   = CRM_Utils_System::url('civicrm/profile/create',"gid=13&reset=1");
         $links[22]['title'] = 'View Donor / Supporter / Member';
         $links[22]['url'] = CRM_Utils_System::url( 'civicrm/contact/search/custom',"reset=1&csid=18&force=1");
+      }
+      $links[23]['title'] = 'My Dashboard';
+      $links[23]['url'] = CRM_Utils_System::url( 'civicrm/dashboard',"reset=1");  
+      $links[] = array(
+        'title' => 'Logout',
+        'url' => CRM_Utils_System::url('civicrm/logout', 'reset=1'),
+      );
     }
-        $links[23]['title'] = 'My Dashboard';
-        $links[23]['url'] = CRM_Utils_System::url( 'civicrm/dashboard',"reset=1");  
-        $links[] = array(
-          'title' => 'Logout',
-          'url' => CRM_Utils_System::url('civicrm/logout', 'reset=1'),
-        );
 }
 
 function contact_summary_civicrm_dashboard( $contactID, &$contentPlacement  ) {
@@ -686,6 +687,23 @@ AND a.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD
           $smarty->_tpl_vars['activityTypes']['remove'] = 'Remove From Household';
           $smarty->_tpl_vars['urls']['remove'] =  CRM_Utils_System::url('civicrm/contact/view/rel', "action=disable&reset=1&rtype=a_b&id={$relId}&cid=".$_SESSION['CiviCRM']['view.id']);
         }
+
+        // UCCPAR-436
+        $names = array();
+        $relationGetParam = array( 
+          'contact_id' => $_SESSION['CiviCRM']['view.id'],
+          'version'    => 3, 
+        );
+        $result = civicrm_api( 'relationship', 'get', $relationGetParam );
+        foreach ($result['values'] as $vals) {
+          if ($vals['relationship_type_id'] == SUPPORTER_RELATION_TYPE_ID) {
+            $names[] = $vals['display_name'];
+          }
+        }
+        if (!empty($names)) {
+          CRM_Utils_System::setTitle($smarty->_tpl_vars['displayName'].' < '.implode(', ', $names).' >');
+        }
+        // UCCPAR-436
         $page->assign('actionsMenuList', array() );
     }
  
