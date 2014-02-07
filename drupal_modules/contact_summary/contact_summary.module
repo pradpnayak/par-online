@@ -1213,72 +1213,87 @@ function contact_summary_civicrm_postProcess( $formName, &$form ){
         $session = CRM_Core_Session::singleton();
         $session->pushUserContext( CRM_Utils_System::url( 'civicrm/contact/view/orginfo', 'reset=1&gid='.$form->getVar( "_gid" ).'&id='.$form->getVar( "_id" )) );
     } else if( $formName == 'CRM_Profile_Form_Edit' && $form->getVar( "_gid" ) == CONTACT_PROFILE_ID ){
-        $supporter_id = CRM_Utils_Array::value( 'supporter_id', $form->_submitValues );
-        $supporter    = CRM_Utils_Array::value( 'supporter', $form->_submitValues );
-        if( !$supporter_id && CRM_Utils_Array::value( 'custom_47', $form->_submitValues )) {
+      $supporter_id = CRM_Utils_Array::value( 'supporter_id', $form->_submitValues );
+      $supporter    = CRM_Utils_Array::value( 'supporter', $form->_submitValues );
+      if( !$supporter_id && CRM_Utils_Array::value( 'custom_47', $form->_submitValues )) {
+        $relId = '';
+        $rel = array( 'version'              => 3,
+                             'contact_id_a'         => $form->getVar( "_id" ),
+                             'relationship_type_id' => SUPPORTER_RELATION_TYPE_ID,
+                             'is_active'            => 1 );
+        $result = civicrm_api( 'relationship', 'get' , $rel );
+        $relations = CRM_Utils_Array::value( 'values', $result );
+        if( $relations ){
+          foreach( $relations as $relationKey => $relationValue ) {
+            if($relationValue[ 'relationship_type_id' ] == SUPPORTER_RELATION_TYPE_ID) {
+              $relId = $relationValue['id'];
+            }
+          }
+        }
+        if ($relId) {
+          CRM_Core_DAO::executeQuery("UPDATE civicrm_relationship SET contact_id_b = {$form->_submitValues['custom_47']} WHERE id = {$relId}");
+        }
+        else {
+          $rel['contact_id_b'] = $form->_submitValues['custom_47'];
+          $result = civicrm_api( 'relationship', 'create' , $rel );
+        }
+      }
+      if( !$supporter_id && !CRM_Utils_Array::value( 'custom_47', $form->_submitValues )) {
+        $getRelationParam = array( 'version'     => 3,
+                            'contact_id'  => $_SESSION[ 'CiviCRM' ][ 'userID' ] );
+        require_once 'api/api.php';
+        $result = civicrm_api( 'relationship', 'get', $getRelationParam );
+        $relations = CRM_Utils_Array::value( 'values', $result );
+        if( $relations ){
+          foreach( $relations as $relationKey => $relationValue ) {
+            if( $relationValue[ 'relationship_type_id' ] == PAR_ADMIN_RELATION_TYPE_ID ) {
+              $createNewRelation = array( 'version'              => 3,
+                                   'contact_id_a'         => $form->getVar( "_id" ),
+                                   'contact_id_b'         => $relationValue[ 'contact_id_b' ],
+                                   'relationship_type_id' => SUPPORTER_RELATION_TYPE_ID,
+                                   'is_active'            => 1 );
+              $result = civicrm_api( 'relationship', 'create' , $createNewRelation );
+              break;
+            } 
+          }  
+        }
+      }
+      if( $supporter_id ){
+        $getRelationParam = array( 'version'     => 3,
+                            'contact_id'  => $form->getVar( "_id" ) );
+        require_once 'api/api.php';
+        $result = civicrm_api( 'relationship', 'get', $getRelationParam );
+        $relations = CRM_Utils_Array::value( 'values', $result );
+        $relationAlreadyExist = false;
+        if( $relations ){
+          foreach( $relations as $relationKey => $relationValue ) {
+            if( $relationValue[ 'relationship_type_id' ] == SUPPORTER_RELATION_TYPE_ID ) {
+              if( $relationValue[ 'contact_id_b' ] == $supporter_id && $relationValue[ 'is_active' ] ) {
+                $relationAlreadyExist = true;
+                break;
+              } else {
+                $disableRelationParam = array( 'version'              => 3,
+                                        'id'                   => $relationValue[ 'id' ],
+                                        'contact_id_a'         => $relationValue[ 'contact_id_a' ],
+                                        'contact_id_b'         => $relationValue[ 'contact_id_b' ],
+                                        'relationship_type_id' => $relationValue[ 'relationship_type_id' ],
+                                        'is_active'            => 0 );
+                $result = civicrm_api( 'relationship', 'create' , $disableRelationParam );
+              }
+            }
+          }
+        }
+        if( !$relationAlreadyExist ) {
           $createNewRelation = array( 'version'              => 3,
                                'contact_id_a'         => $form->getVar( "_id" ),
-                               'contact_id_b'         => CRM_Utils_Array::value( 'custom_47', $form->_submitValues ),
+                               'contact_id_b'         => $supporter_id,
                                'relationship_type_id' => SUPPORTER_RELATION_TYPE_ID,
                                'is_active'            => 1 );
           $result = civicrm_api( 'relationship', 'create' , $createNewRelation );
         }
-        if( !$supporter_id && !CRM_Utils_Array::value( 'custom_47', $form->_submitValues )) {
-            $getRelationParam = array( 'version'     => 3,
-                                       'contact_id'  => $_SESSION[ 'CiviCRM' ][ 'userID' ] );
-            require_once 'api/api.php';
-            $result = civicrm_api( 'relationship', 'get', $getRelationParam );
-            $relations = CRM_Utils_Array::value( 'values', $result );
-            if( $relations ){
-                foreach( $relations as $relationKey => $relationValue ) {
-                    if( $relationValue[ 'relationship_type_id' ] == PAR_ADMIN_RELATION_TYPE_ID ) {
-                        $createNewRelation = array( 'version'              => 3,
-                                                    'contact_id_a'         => $form->getVar( "_id" ),
-                                                    'contact_id_b'         => $relationValue[ 'contact_id_b' ],
-                                                    'relationship_type_id' => SUPPORTER_RELATION_TYPE_ID,
-                                                    'is_active'            => 1 );
-                        $result = civicrm_api( 'relationship', 'create' , $createNewRelation );
-                        break;
-                    } 
-                }  
-            }
-        }
-        if( $supporter_id ){
-            $getRelationParam = array( 'version'     => 3,
-                                       'contact_id'  => $form->getVar( "_id" ) );
-            require_once 'api/api.php';
-            $result = civicrm_api( 'relationship', 'get', $getRelationParam );
-            $relations = CRM_Utils_Array::value( 'values', $result );
-            $relationAlreadyExist = false;
-            if( $relations ){
-                foreach( $relations as $relationKey => $relationValue ) {
-                    if( $relationValue[ 'relationship_type_id' ] == SUPPORTER_RELATION_TYPE_ID ) {
-                        if( $relationValue[ 'contact_id_b' ] == $supporter_id && $relationValue[ 'is_active' ] ) {
-                            $relationAlreadyExist = true;
-                            break;
-                        } else {
-                            $disableRelationParam = array( 'version'              => 3,
-                                                           'id'                   => $relationValue[ 'id' ],
-                                                           'contact_id_a'         => $relationValue[ 'contact_id_a' ],
-                                                           'contact_id_b'         => $relationValue[ 'contact_id_b' ],
-                                                           'relationship_type_id' => $relationValue[ 'relationship_type_id' ],
-                                                           'is_active'            => 0 );
-                            $result = civicrm_api( 'relationship', 'create' , $disableRelationParam );
-                        }
-                    }
-                }
-            }
-            if( !$relationAlreadyExist ) {
-                $createNewRelation = array( 'version'              => 3,
-                                            'contact_id_a'         => $form->getVar( "_id" ),
-                                            'contact_id_b'         => $supporter_id,
-                                            'relationship_type_id' => SUPPORTER_RELATION_TYPE_ID,
-                                            'is_active'            => 1 );
-                $result = civicrm_api( 'relationship', 'create' , $createNewRelation );
-            }
-        }
-        $session = CRM_Core_Session::singleton();
-        $session->pushUserContext( CRM_Utils_System::url( 'civicrm/contact/view', 'reset=1&cid='.$form->getVar( "_id" )));
+      }
+      $session = CRM_Core_Session::singleton();
+      $session->pushUserContext( CRM_Utils_System::url( 'civicrm/contact/view', 'reset=1&cid='.$form->getVar( "_id" )));
     }
 }
 
