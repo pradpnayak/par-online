@@ -499,6 +499,16 @@ function contact_summary_civicrm_buildForm( $formName, &$form ) {
     if( $form->getVar( '_gid' ) == CONTACT_PROFILE_ID && $formName == 'CRM_Profile_Form_Edit' ){
         $currentUserId = $_SESSION[ 'CiviCRM' ][ 'userID' ];
         require_once 'CRM/Contact/BAO/GroupContact.php';
+        // set default values
+        require_once 'CRM/Core/BAO/CustomValueTable.php';
+        $congregation = '';
+        $congregations = findContactCongregation();
+        if (CRM_Utils_Array::value( 'id', $_GET )) {
+          $congregation = CRM_Core_BAO_CustomValueTable::getEntityValues(CRM_Utils_Array::value( 'id', $_GET ), 'Individual', array(47));
+        }
+        if (!$congregation && !CRM_Utils_Array::value( 'id', $_GET )) {
+          $form->setDefaults(array('custom_47' => key($congregations)));
+        }
         $isParAdmin   = CRM_Contact_BAO_GroupContact::isContactInGroup( $currentUserId, PAR_ADMIN_GROUP_ID );
         $isDenomAdmin = CRM_Contact_BAO_GroupContact::isContactInGroup( $currentUserId, DENOMINATION_ADMIN_GROUP_ID );
         $sysadmins = getSysAdmins();
