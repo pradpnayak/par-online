@@ -707,6 +707,7 @@ AND a.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD
         $names = array();
         $relationGetParam = array( 
           'contact_id' => $_SESSION['CiviCRM']['view.id'],
+          'is_active' => 1,
           'version'    => 3, 
         );
         $result = civicrm_api( 'relationship', 'get', $relationGetParam );
