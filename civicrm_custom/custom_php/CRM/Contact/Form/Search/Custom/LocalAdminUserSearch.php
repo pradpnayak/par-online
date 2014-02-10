@@ -44,7 +44,8 @@ implements CRM_Contact_Form_Search_Interface {
         parent::__construct( $formValues );
 
 
-        $this->_columns = array( ts('Name')             => 'donor_name'  ,
+        $this->_columns = array( ts('Name')             => 'donor_name'  , 
+                                 ts('Congregation Name')             => 'cong_name'  ,
                                  ts('Envelope #')       => 'envelope_number' ,
                                  ts('Primary E-mail')   => 'donor_email',
                                  ts('Subscribed Funds') => 'funds',
@@ -93,7 +94,7 @@ implements CRM_Contact_Form_Search_Interface {
     function all( $offset = 0, $rowcount = 0, $sort = null,
                   $includeContactIDs = false ) {
         $selectClause = "
-contact_a.id as contact_id, contact_a.display_name as donor_name,
+contact_a.id as contact_id, contact_a.display_name as donor_name, contact_b.display_name as cong_name,
 admin_cc.id as admin_id, admin_cc.display_name as admin_name,
 email.email as donor_email, '' as funds, '' as mtd_total, '' as total, '' as upcoming, envelope.envelope_number_40 as envelope_number";
         return $this->sql( $selectClause,
@@ -116,7 +117,9 @@ LEFT JOIN civicrm_group_contact  AS supporter   ON ( contact_a.id = supporter.co
 LEFT JOIN civicrm_email  AS email  ON ( email.contact_id = contact_a.id AND email.is_primary = 1 )
 
 LEFT JOIN civicrm_value_envelope_13  AS envelope  ON ( envelope.entity_id  = contact_a.id )
-LEFT JOIN civicrm_relationship ccr ON ccr.contact_id_a = contact_a.id ";
+LEFT JOIN civicrm_relationship ccr ON ccr.contact_id_a = contact_a.id 
+
+LEFT JOIN civicrm_contact contact_b ON ( ccr.contact_id_b = contact_b.id )";
     }
     
     function where( $includeContactIDs = false ) {
