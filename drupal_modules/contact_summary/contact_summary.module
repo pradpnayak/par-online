@@ -73,7 +73,26 @@ function contact_summary_user_login(&$edit, $account) {
         }
     
     } 
-    
+    // UCCPAR - 434
+     $congregations = findContactCongregation();
+     $relApiParams = array(
+       'version' => 3,
+       'sequential' =>1, 
+       'relationship_type_id' => SUPPORTER_RELATION_TYPE_ID,
+     );
+     foreach($congregations as $key => $value) {
+       $relApiParams['contact_id_b'] = $key;
+       $supporters = civicrm_api('Relationship', 'get', $relApiParams);
+       foreach ($supporters['values'] as $index => $info) {
+         $customValueParams = array(
+           'version' => 3,
+           'custom_48' => 1,
+           'entity_id' => $info['contact_id_a'],
+           'entity_table' => 'civicrm_contact',
+         );
+         $customValue = civicrm_api('CustomValue', 'create', $customValueParams);
+       }
+     }
   }
 
 function contact_summary_civicrm_searchTasks( $objectName, &$tasks ) {
@@ -1858,6 +1877,7 @@ function findContactCongregation($cid = NULL) {
   if (!$cid) {
     $cid = CRM_Core_Session::singleton()->get('userID');
   }
+  
   if (!$cid) {
     return NULL;
   }
@@ -1873,7 +1893,7 @@ ORDER BY organization_name';
   );
   
   $dao = CRM_Core_DAO::executeQuery($query, $queryParams);
-  if ($dao->N > 1) {
+  if ($dao->N >= 1) {
     while ($dao->fetch()) {
       $congregations[$dao->contact_id_b] = $dao->organization_name;
     }

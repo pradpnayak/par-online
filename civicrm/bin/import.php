@@ -899,9 +899,27 @@ Class CRM_par_import {
       } else {
         $display_name2 = null;
         $sort_name2 =  null;
+      } 
+      // UCCPAR-434
+      $connect = mysql_connect( $this->localhost, "{$this->userName}", "{$this->pass}" );
+      if (!$connect) {
+        die('Could not connect: ' . mysql_error());
       }
-    
-      if(!empty($ext_id) && (!empty($first_name1) || !empty($last_name1) ) )
+      mysql_select_db( "$this->dbName", $connect);
+      $sql = "SELECT c.id, o.activated__48 as act FROM civicrm_contact c LEFT JOIN civicrm_value_is_online_17 o ON o.entity_id = c.id WHERE o.activated__48 = 1 AND c.external_identifier = '{$ext_id}'";
+      $idact = null;
+      $results = mysql_query($sql);
+      while ( $fields = mysql_fetch_assoc($results) ) {
+        $idact = $fields['id'];
+        $actflag = $fields['act'];
+      }
+      if (!$actflag || !$idact) {
+        $actflag = 'No';
+      }
+      else {
+        $actflag = 'Yes';
+      }
+      if(!empty($ext_id) && (!empty($first_name1) || !empty($last_name1) ) && !$idact)
         {
           $insert_all_rows ='';
                   
@@ -993,7 +1011,7 @@ Class CRM_par_import {
             $setLOGNULL = "SET @logId := '';\n";
             $logId = "SELECT @logId := log_id FROM civicrm_log_par_donor WHERE primary_contact_id = @contactId AND external_identifier = '{$extrnal_id}';\n";
             
-            $insertParLog = "INSERT INTO civicrm_log_par_donor ( log_id, log_contact, log_action, primary_contact_id, external_identifier, ms_number, par_donor_name, organization_name, street_address, city, postal_code, country, email, par_donor_envelope, parent_id ) VALUES ( @logId, 1, 'Update', @contactId, '{$extrnal_id}', {$donor_ms_no}, '{$pardonorName}', '{$organization_name}', '{$street_address}', '{$city}','{$postal_code}', 'CAN', '{$email}', '{$donor_envelope}', {$idb} ) ON DUPLICATE KEY UPDATE log_id = @logId, primary_contact_id = @contactId, external_identifier = '{$extrnal_id}', ms_number = {$donor_ms_no}, par_donor_name = '{$pardonorName}', organization_name = '{$organization_name}', street_address = '{$street_address}', city = '{$city}', postal_code = '{$postal_code}', email = '{$email}', par_donor_envelope = '{$donor_envelope}', parent_id = {$idb};\n";
+            $insertParLog = "INSERT INTO civicrm_log_par_donor ( log_id, log_contact, log_action, activated,  primary_contact_id, external_identifier, ms_number, par_donor_name, organization_name, street_address, city, postal_code, country, email, par_donor_envelope, parent_id ) VALUES ( @logId, 1, 'Update', '{$actflag}', @contactId, '{$extrnal_id}', {$donor_ms_no}, '{$pardonorName}', '{$organization_name}', '{$street_address}', '{$city}','{$postal_code}', 'CAN', '{$email}', '{$donor_envelope}', {$idb} ) ON DUPLICATE KEY UPDATE log_id = @logId, activated = '{$actflag}',  primary_contact_id = @contactId, external_identifier = '{$extrnal_id}', ms_number = {$donor_ms_no}, par_donor_name = '{$pardonorName}', organization_name = '{$organization_name}', street_address = '{$street_address}', city = '{$city}', postal_code = '{$postal_code}', email = '{$email}', par_donor_envelope = '{$donor_envelope}', parent_id = {$idb};\n";
             
           }
           
@@ -1296,7 +1314,7 @@ Class CRM_par_import {
         $insert_all_rows  = $contact_id.$setRecuNULL.$recurId.$contribRecurInsert.$recurId.$setContrNULL.$contrId.$contrib.$contrId.$orgId.$generalPFID.$generalPFValue.$setGeneraNULL.$generalLI.$lineItemGeneral.$msPFID.$msPFValue.$setMsNULL.$msLI.$lineItemMS.$otherPFID.$otherPFValue.$setOtherNULL.$otherLI.$lineItemOther.$setLOGNULL.$logId.$insertParLog;
        
         if( !empty($ContTypeID) ) {
-          $count++; 
+          $count++;
           fwrite($write,$insert_all_rows); 
         } else {
           $others++;
