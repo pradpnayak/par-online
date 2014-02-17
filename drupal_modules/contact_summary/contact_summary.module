@@ -559,6 +559,10 @@ function contact_summary_civicrm_buildForm( $formName, &$form ) {
             $form->add( 'text', "supporter", 'Supporter Of', array( 'value' => $supporter ) );
             $form->add( 'hidden', "supporter_id", $supporterId );
         }
+        else {
+          $smarty = CRM_Core_Smarty::singleton();
+          unset($smarty->_tpl_vars['fields']['custom_48']);
+        }
     }
 }
 
