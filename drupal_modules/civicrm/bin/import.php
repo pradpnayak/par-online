@@ -1509,12 +1509,18 @@ AND cc.external_identifier LIKE 'H-" . $rows[0] . "';\n";
       $deleteQuery = "\n UPDATE civicrm_log_par_donor clpd
 LEFT JOIN civicrm_contact cc ON cc.id = clpd.primary_contact_id
 LEFT JOIN civicrm_contribution_recur ccr ON ccr.contact_id = cc.id AND ccr.contribution_status_id = 5
+LEFT JOIN civicrm_value_is_online_17 cvc ON clpd.primary_contact_id = cvc.entity_id
 SET  `log_action` = 'Delete',
 `log_time` = now(),
 removed = 1,
 cc.is_deleted = 1,
 ccr.contribution_status_id = 1
-WHERE `log_time` < CURDATE();\n";
+WHERE `log_time` < CURDATE() AND 
+CASE 
+  WHEN cvc.entity_id IS NOT NULL AND activated__48 = 1
+  THEN 0
+  ELSE 1   
+END;\n";
       fwrite($newRecordsToInsert, $deleteQuery);
     }
     self::logs("no of records = ".$count);
