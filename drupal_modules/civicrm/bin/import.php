@@ -646,14 +646,14 @@ INSERT INTO civicrm_phone (id, contact_id, location_type_id, is_primary, phone, 
     static $id_no ='';
     while ( $rows = fgetcsv( $read ) ) {
       $street_address = $city = $province = $postal_code = $email = $phone = $pardonorName = null;
-      $extrnal_id = $and = $idact = null;
-      $idact = CRM_Core_DAO::singleValueQuery("SELECT c.id FROM civicrm_contact c LEFT JOIN civicrm_value_is_online_17 o ON o.entity_id = c.id WHERE o.activated__48 = 1 AND c.external_identifier = '{$ext_id}'");
-      if ($idact) {
-        continue;
-      }
+      $extrnal_id = $and = $idact = $ext_id = null;
       if ( !empty( $rows[0] ) ) {
         $ext_id =  'D-'.$rows[0];
         $extrnal_id = $rows[0];
+      }
+      $idact = CRM_Core_DAO::singleValueQuery("SELECT c.id FROM civicrm_contact c LEFT JOIN civicrm_value_is_online_17 o ON o.entity_id = c.id WHERE o.activated__48 = 1 AND c.external_identifier = '{$ext_id}'");
+      if ($idact) {
+        continue;
       }
 
       if ( !empty( $rows[1] ) ) {
