@@ -2136,10 +2136,11 @@ AND cd.bank_number_11 = '{$bank_number}'";
       die('Could not connectss: ' . mysql_error());
     }
     mysql_select_db( "$this->dbName", $con);
-    $getTable = "SELECT  clpd.*, REPLACE(civicrm_contact.external_identifier, 'O-', '') par_donor_owner_id
+    $getTable = "SELECT  clpd.*, IFNULL(activated__48,0) is_online_par, REPLACE(civicrm_contact.external_identifier, 'O-', '') par_donor_owner_id
 FROM civicrm_log_par_donor clpd
 LEFT JOIN civicrm_relationship cr ON cr.contact_id_a = clpd.primary_contact_id
 LEFT JOIN civicrm_contact ON civicrm_contact.id = cr.contact_id_b
+LEFT JOIN civicrm_value_is_online_17 cv ON cv.entity_id = clpd.primary_contact_id
 WHERE cr.is_active = 1 AND cr.relationship_type_id =" . SUPPORTER_RELATION_TYPE_ID ;
     $table  = mysql_query ( $getTable ) or die ( "Sql error : " . mysql_error( ) );
     $exportCSV  = fopen($this->parOnline2ParPath . '/' . $this->newDirectory . '/' . $this->synchFile, 'w' );
