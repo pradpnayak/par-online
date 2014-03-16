@@ -1763,7 +1763,7 @@ group by cct.label";
     }
     
     $anticipatedQuery = "SELECT sum( cct.line_total  ) sm, cct.label
-FROM civicrm_contribution donation
+FROM civicrm_contribution_recur donation
 LEFT JOIN civicrm_relationship org_supporter  ON org_supporter.contact_id_a = donation.contact_id
 LEFT JOIN civicrm_line_item cct ON cct.entity_id = donation.id
 LEFT JOIN civicrm_contact cc ON cc.id = ".$cid."
