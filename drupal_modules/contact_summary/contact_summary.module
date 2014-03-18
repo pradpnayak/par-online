@@ -423,13 +423,18 @@ function contact_summary_civicrm_tabs( &$tabs, $contactID ) {
                      'title'  => 'Contact Profile',
                      'weight' => 0 );
     $tabIndex = count($tabs);
-    if( CRM_Contact_BAO_Contact_Permission::allow( $contactID, CRM_Core_Permission::EDIT ) ){
-      $url = CRM_Utils_System::url( 'civicrm/contact/view/donations',
-                                      "reset=1&snippet=4&force=1&tabIndex=1&cid=$contactID&addNew=$addNew" );
-        $tabs[] = array( 'id'     => 'donation',
-                         'url'    => $url,
-                         'title'  => 'Add / Edit Donations',
-                         'weight' => 1 );
+    $hasHouseholdRelationship = explode('-', CRM_Core_Smarty::singleton()->get_template_vars('external_identifier'));
+    
+    if (CRM_Contact_BAO_Contact_Permission::allow($contactID, CRM_Core_Permission::EDIT)
+      && ($hasHouseholdRelationship[0] == 'D' && !array_key_exists(2, $hasHouseholdRelationship))) {
+      $url = CRM_Utils_System::url('civicrm/contact/view/donations',
+        "reset=1&snippet=4&force=1&tabIndex=1&cid=$contactID&addNew=$addNew");
+      $tabs[] = array( 
+        'id' => 'donation',
+        'url' => $url,
+        'title' => 'Add / Edit Donations',
+        'weight' => 1 
+      );
     }
 }
 
