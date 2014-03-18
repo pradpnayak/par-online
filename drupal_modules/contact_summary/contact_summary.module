@@ -710,9 +710,11 @@ AND a.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD
         $smarty->_tpl_vars['urls']['edit'] = CRM_Utils_System::url('civicrm/profile/edit', $param);
         $smarty->_tpl_vars['activityTypes']['donation'] = 'Add Donation';
         $smarty->_tpl_vars['urls']['donation'] = CRM_Utils_System::url('civicrm/contact/view',"reset=1&cid=".$_SESSION['CiviCRM']['view.id']."&selectedChild=donation&addNew=1");
-        $smarty->_tpl_vars['activityTypes']['delete'] = 'Delete Contact';
-        $smarty->_tpl_vars['urls']['delete'] =  CRM_Utils_System::url('civicrm/contact/delete/donor', "reset=1&cid=".$_SESSION['CiviCRM']['view.id']);
-
+        $daoObject = getLogDetails(array('nsf'), array('primary_contact_id = ' . $_SESSION['CiviCRM']['view.id']));
+        if (!$daoObject->nsf) {
+          $smarty->_tpl_vars['activityTypes']['delete'] = 'Delete Contact';
+          $smarty->_tpl_vars['urls']['delete'] =  CRM_Utils_System::url('civicrm/contact/delete/donor', "reset=1&cid=".$_SESSION['CiviCRM']['view.id']);
+        }        
         $smarty->_tpl_vars['activityTypes']['hold'] = 'Hold All Donations for Next Cycle';
         $smarty->_tpl_vars['urls']['hold'] =  CRM_Utils_System::url('civicrm/contact/hold/donation', "reset=1&cid=".$_SESSION['CiviCRM']['view.id']);
 
@@ -1908,4 +1910,15 @@ ORDER BY organization_name';
     }
   }
   return $congregations;
+}
+
+function getLogDetails($select, $condition) {
+
+  $sql = 'SELECT ' . implode(' , ', $select) . ' FROM civicrm_log_par_donor ';
+  if ($condition) {
+    $sql .= ' WHERE ' . implode (' AND ', $condition);
+  }
+  $dao = CRM_Core_DAO::executeQuery($sql);
+  $dao->fetch();
+  return $dao;
 }
