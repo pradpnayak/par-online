@@ -189,7 +189,7 @@ function contact_summary_civicrm_dashboard( $contactID, &$contentPlacement  ) {
    $search = array();
    if ( CRM_Contact_BAO_GroupContact::isContactInGroup( $contactID , PAR_ADMIN_GROUP_ID ) ) {
      $congregations = findContactCongregation();
-     $congregationTd = '';
+     $congregationTd = $congregationLabel = '';
      if (count($congregations) > 1) {
        $congregationLabel = "<td class='label'><label for='contact_sub_type'>Congregation</label></td>";
        $congregationTd .= '<td class="label"><select class="form-select valid" id="contact_sub_type" name="contact_sub_type">';
