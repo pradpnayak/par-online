@@ -443,6 +443,18 @@ function contact_summary_civicrm_xmlMenu( &$files ) {
 } 
 
 function contact_summary_civicrm_buildForm( $formName, &$form ) {
+  if ($formName == 'CRM_Contact_Form_Task_Delete') {
+    $query = 'SELECT primary_contact_id FROM civicrm_log_par_donor WHERE nsf = 1 AND primary_contact_id IN (' . implode(', ', $form->_contactIds) . ');';
+    $dao = CRM_Core_DAO::executeQuery($query);
+    if ($dao->N) {
+      $form->assign('nsfTrueContacts', $dao->N);
+    }
+    while($dao->fetch()) {
+      unset($form->_contactIds[array_search($dao->primary_contact_id, $form->_contactIds)]);
+    }
+    $form->setVar('_componentIds', $form->_contactIds);
+  }
+  
     if ($form->getVar( '_gid' ) == ORGANIZATION_PROFILE_ID || $form->getVar( '_gid' ) == DENOMINATION_PROFILE_ID || $form->getVar( '_gid' ) == PC_PROFILE_ID || $form->getVar( '_gid' ) == CO_PROFILE_ID )  {
         $form->add( 'hidden', "gid",  $form->getVar( '_gid' ));
         require_once 'CRM/Contribute/DAO/ParServiceFees.php';
