@@ -54,7 +54,6 @@ implements CRM_Contact_Form_Search_Interface {
     }
 
     function buildForm( &$form ) {
-        
         $form->add( 'text',
                     'display_name',
                     ts( 'Charge Name' ),
@@ -90,8 +89,8 @@ implements CRM_Contact_Form_Search_Interface {
          * are part of the search criteria
          */
         $form->assign( 'elements', array( 'display_name', 'sort_name', 'first_name', 'last_name', 'organization_name', 'city' ) );
-        
-        
+        $task =& CRM_Contact_Task::$_tasks;
+        unset($task[8]);
     }
 
     function all( $offset = 0, $rowcount = 0, $sort = null,

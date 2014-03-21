@@ -98,7 +98,7 @@ function contact_summary_user_login(&$edit, $account) {
 function contact_summary_civicrm_searchTasks( $objectName, &$tasks ) {
     if ( $objectName == 'contact' ) {
         foreach ( $tasks as $key => $value ) {
-            if ( $key != 6 && $key != 8 && $key != 15 && $key != 16 ) {
+          if ( $key != 6 && $key != 8 && $key != 15 && $key != 16 ) {
               unset( $tasks[$key] );
             }
         }
@@ -723,7 +723,7 @@ AND a.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD
         $smarty->_tpl_vars['activityTypes']['donation'] = 'Add Donation';
         $smarty->_tpl_vars['urls']['donation'] = CRM_Utils_System::url('civicrm/contact/view',"reset=1&cid=".$_SESSION['CiviCRM']['view.id']."&selectedChild=donation&addNew=1");
         $daoObject = getLogDetails(array('nsf'), array('primary_contact_id = ' . $_SESSION['CiviCRM']['view.id']));
-        if (!$daoObject->nsf) {
+        if (property_exists($daoObject, 'nsf') && !$daoObject->nsf) {
           $smarty->_tpl_vars['activityTypes']['delete'] = 'Delete Contact';
           $smarty->_tpl_vars['urls']['delete'] =  CRM_Utils_System::url('civicrm/contact/delete/donor', "reset=1&cid=".$_SESSION['CiviCRM']['view.id']);
         }        
