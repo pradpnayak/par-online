@@ -717,9 +717,15 @@ AND a.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD
             }
         }
         $smarty->_tpl_vars['param']                     = $param;
+        $isOnline = TRUE;
+        if (in_array(CRM_Core_Session::singleton()->get('userID'), getSysAdmins())) {
+          $isOnline = CRM_Core_DAO::singleValueQuery('SELECT activated__48 FROM civicrm_value_is_online_17 WHERE entity_id = ' . $_SESSION['CiviCRM']['view.id']);
+        }
+        if ($isOnline) {
+          $smarty->_tpl_vars['activityTypes']['edit'] = 'Edit Contact Details';       
+          $smarty->_tpl_vars['urls']['edit'] = CRM_Utils_System::url('civicrm/profile/edit', $param);
+        }
 
-        $smarty->_tpl_vars['activityTypes']['edit'] = 'Edit Contact Details';       
-        $smarty->_tpl_vars['urls']['edit'] = CRM_Utils_System::url('civicrm/profile/edit', $param);
         $smarty->_tpl_vars['activityTypes']['donation'] = 'Add Donation';
         $smarty->_tpl_vars['urls']['donation'] = CRM_Utils_System::url('civicrm/contact/view',"reset=1&cid=".$_SESSION['CiviCRM']['view.id']."&selectedChild=donation&addNew=1");
         $daoObject = getLogDetails(array('nsf'), array('primary_contact_id = ' . $_SESSION['CiviCRM']['view.id']));
