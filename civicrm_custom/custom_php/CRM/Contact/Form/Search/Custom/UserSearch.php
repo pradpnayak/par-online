@@ -40,15 +40,36 @@ class CRM_Contact_Form_Search_Custom_UserSearch
    extends    CRM_Contact_Form_Search_Custom_Base
 implements CRM_Contact_Form_Search_Interface {
 
+    static $_links = null;
     function __construct( &$formValues ) {
         parent::__construct( $formValues );
 
 
-        $this->_columns = array( ts('Name')           => 'donor_name'  ,
-                                 ts('PAR ID')         => 'external_identifier',
+        $this->_columns = array( ts('Name') => 'donor_name'  ,
+                                 ts('PAR ID') => 'external_identifier',
                                  ts('Primary E-mail') => 'email',
-                                 ts('PC Name')        => 'pc_name',
-                                 ts('Conference')     => 'conf_name',) ;
+                                 ts('PC Name') => 'pc_name',
+                                 ts('Conference' )=> 'conf_name',
+                                 ts('dont Care') => 'activated__48',) ;
+    }
+    static function &links() {
+      if (!(self::$_links)) {
+        self::$_links = array(
+          CRM_Core_Action::VIEW => array(
+            'name'=> ts('View'),
+            'url' => 'civicrm/contact/view',
+            'qs' => 'reset=1&cid=%%id%%',
+            'title' => ts('View Contact Details'),
+          ),
+          CRM_Core_Action::UPDATE => array(
+            'name' => ts('Edit'),
+            'url' => 'civicrm/contact/add',
+            'qs' => 'reset=1&action=update&cid=%%id%%',
+            'title' => ts('Edit Contact Details'),
+          ),
+        );
+      }
+      return self::$_links;
     }
 
     function buildForm( &$form ) {
@@ -82,7 +103,7 @@ implements CRM_Contact_Form_Search_Interface {
       $includeContactIDs = FALSE) {
       $selectClause = "
 Distinct(contact_a.id) as contact_id, '' as pc_name, '' as conf_name, contact_a.display_name as donor_name,
-contact_a.external_identifier as external_identifier, email.email as email";
+contact_a.external_identifier as external_identifier, email.email as email, activated__48";
           
       if (CRM_Utils_Array::value('external_identifier', $this->_formValues)) {
         $selectClause .= ", cast(SUBSTRING_INDEX(REPLACE(contact_a.external_identifier, 'D-', ''),'-',1) as unsigned) as int_external_identifier";
@@ -112,6 +133,7 @@ LEFT JOIN civicrm_contact AS admin_cc ON ( admin_cc.id = donor_rel.contact_id )
 LEFT JOIN civicrm_group_contact  AS supporter   ON ( contact_a.id = supporter.contact_id AND supporter.status = 'Added' )
 
 LEFT JOIN civicrm_email  AS email  ON ( email.contact_id = contact_a.id AND email.is_primary = 1 )
+LEFT JOIN civicrm_value_is_online_17 online ON online.entity_id = contact_a.id 
 
  ";
     }
@@ -171,7 +193,25 @@ LEFT JOIN civicrm_email  AS email  ON ( email.contact_id = contact_a.id AND emai
     }
 
     function templateFile( ) {
-        return 'CRM/Contact/Form/Search/Custom/UserSearch.tpl';
+      unset($this->_columns['dont Care']);
+      $headers =& CRM_Core_Smarty::singleton()->get_template_vars('columnHeaders');
+      unset($headers[5]);
+      $rows =& CRM_Core_Smarty::singleton()->get_template_vars('rows');
+      $permissions = array(CRM_Core_Permission::getPermission());
+      $mask = CRM_Core_Action::mask($permissions);
+      foreach ($rows as $key => $row) {
+        $links = self::links();
+        if (empty($row['activated__48'])) {
+          unset($links[CRM_Core_Action::UPDATE]);
+          $rows[$key]['action'] = CRM_Core_Action::formLink( 
+            $links,
+            $mask ,
+            array( 'id' => $row['contact_id']) 
+          );
+        }
+        unset($row['activated__48']);
+      }
+      return 'CRM/Contact/Form/Search/Custom/UserSearch.tpl';
     }
 
     function setDefaultValues( ) {
