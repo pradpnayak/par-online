@@ -44,14 +44,16 @@ implements CRM_Contact_Form_Search_Interface {
         parent::__construct( $formValues );
 
 
-        $this->_columns = array( ts('Name')             => 'donor_name'  , 
-                                 ts('Congregation Name')             => 'cong_name'  ,
-                                 ts('Envelope #')       => 'envelope_number' ,
-                                 ts('Primary E-mail')   => 'donor_email',
+        $this->_columns = array( ts('Name') => 'donor_name'  , 
+                                 ts('Congregation Name') => 'cong_name'  ,
+                                 ts('NSF') => 'nsf',
+                                 ts('Status') => 'contribution_status_id',
+                                 ts('Envelope #') => 'envelope_number' ,
+                                 ts('Primary E-mail') => 'donor_email',
                                  ts('Subscribed Funds') => 'funds',
-                                 ts('Current Month')    => 'mtd_total',
-                                 ts('Upcoming Month')   => 'upcoming',
-                                 ts('Year To Date')     => 'total',) ;
+                                 ts('Current Month') => 'mtd_total',
+                                 ts('Upcoming Month') => 'upcoming',
+                                 ts('Year To Date') => 'total',) ;
         $this->_congregations = findContactCongregation();
     }
 
@@ -96,7 +98,7 @@ implements CRM_Contact_Form_Search_Interface {
         $selectClause = "
 contact_a.id as contact_id, contact_a.display_name as donor_name, contact_b.display_name as cong_name,
 admin_cc.id as admin_id, admin_cc.display_name as admin_name,
-email.email as donor_email, '' as funds, '' as mtd_total, '' as total, '' as upcoming, envelope.envelope_number_40 as envelope_number";
+email.email as donor_email, '' as funds, '' as mtd_total, '' as total, '' as upcoming, envelope.envelope_number_40 as envelope_number, nsf, NULL as contribution_status_id ";
         return $this->sql( $selectClause,
                            $offset, $rowcount, $sort,
                            $includeContactIDs, null );
@@ -119,7 +121,8 @@ LEFT JOIN civicrm_email  AS email  ON ( email.contact_id = contact_a.id AND emai
 LEFT JOIN civicrm_value_envelope_13  AS envelope  ON ( envelope.entity_id  = contact_a.id )
 LEFT JOIN civicrm_relationship ccr ON ccr.contact_id_a = contact_a.id 
 
-LEFT JOIN civicrm_contact contact_b ON ( ccr.contact_id_b = contact_b.id )";
+LEFT JOIN civicrm_contact contact_b ON ( ccr.contact_id_b = contact_b.id )
+LEFT JOIN civicrm_log_par_donor log ON (log.primary_contact_id = contact_a.id)";
     }
     
     function where( $includeContactIDs = false ) {
@@ -200,6 +203,8 @@ LEFT JOIN civicrm_contact contact_b ON ( ccr.contact_id_b = contact_b.id )";
     function alterRow( &$row ) {
         require_once 'CRM/Core/DAO.php';
         require_once 'CRM/Utils/Money.php';
+        require_once 'CRM/Contribute/PseudoConstant.php';
+        $status = CRM_Contribute_PseudoConstant::contributionStatus();
         $from = date('Y').'-'.date('m').'-01 00:00:00';  
         $upTo = date('Y-m-d H:i:s');
         $summary = getDonationSummary($row['contact_id']);
@@ -217,6 +222,10 @@ LEFT JOIN civicrm_contact contact_b ON ( ccr.contact_id_b = contact_b.id )";
         if ( $summary['year'] ) {
             $row['total'] = CRM_Utils_Money::format( $summary['year']['amount'] );
         } 
+        $contributionStatus = CRM_Core_DAO::singleValueQuery('SELECT contribution_status_id FROM civicrm_contribution_recur WHERE contact_id = ' . $row['contact_id'] . ' ORDER BY id DESC LIMIT 1');
+        if ($contributionStatus) {
+          $row['contribution_status_id'] = CRM_Utils_Array::value($contributionStatus, $status);
+        }
         return $row;
     }
 

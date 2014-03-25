@@ -92,6 +92,12 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
           unset($contributionStatus[array_search('Stopped', $contributionStatus)]);
         }
         $this->add( 'select', "payment_status", null, $contributionStatus, null, array( 'class' => 'payment_status' ) );
+        $extra = array('maxlength' => 1, 'class' => 'nsf', 'value'=> $daoObject->nsf);
+        
+        if (!in_array(CRM_Core_Session::singleton()->get('userID'), getSysAdmins())) {
+          $extra['disabled'] = 'disabled';
+        }
+        $this->add('text', "nsf", null, $extra);
         $this->add( 'select', "frequency_unit", null, $frequencyUnits, null, array( 'class' => 'frequency_unit' ) );
         //$this->assign( 'contriStatus', $contributionStatus[$contributionDetails[ 'contribution_status_id' ]] );
         $this->add( 'select', "payment_instrument", null, $paymentInstrument, null, array( 'class' => 'payment_instrument' ) );

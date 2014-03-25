@@ -23,6 +23,7 @@
 		   <th class='cc'>Credit Card #</th>
 		   <th class='cc'>Expires on</th>
 		   <th class='cc'>CAVV</th>
+		   <th class='nsf'>NSF</th>
 	       </tr>
 	       <tr id='instrument-deatils'>
 	           <td width='130px'>
@@ -41,6 +42,7 @@
 		   <td class='cc'>{$form.cc_number.html}</td>
 		   <td class='cc'>{$form.cc_expire.html}</td>
 		   <td class='cc'>{$form.cavv.html}</td>
+		   <td class='nsf'>{$form.nsf.html}</td>
 	       </tr>
 	   </table>
 	</td>
