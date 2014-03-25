@@ -72,13 +72,15 @@ implements CRM_Contact_Form_Search_Interface {
                     ts( 'Last Name' ),
                     true );
         $form->add( 'text',
-                    'organization_name',
-                    ts( 'Denomination' ),
-                    true ); 
-        $form->add( 'text',
                     'city',
                     ts( 'City/Town' ),
                     true ); 
+        $denominations = array();
+        $dao = CRM_Core_DAO::executeQuery('SELECT id, organization_name FROM civicrm_contact WHERE contact_sub_type = "Denomination"');
+        while ($dao->fetch()) {
+          $denominations[$dao->id] = $dao->organization_name;
+        }
+        $form->add('select', 'organization_name', ts('Denomination'), array('' => '-- Select Denomination --') + $denominations, null, array('class' => 'organization_name'));
         /**
          * You can define a custom title for the search form
          */
@@ -219,13 +221,10 @@ LEFT JOIN civicrm_contact AS non_uc_cc ON ( non_uc_cc.id = non_uc_rel.contact_id
         
         $denomination_name   = CRM_Utils_Array::value( 'organization_name',
                                                        $this->_formValues );
-        if ( $denomination_name != null ) {
-            if ( strpos( $denomination_name, '%' ) === false ) {
-                $denomination_name = "%{$denomination_name}%";
-            }
-            $params[$count] = array( $denomination_name, 'String' );
-            $clause[] = "( ( deno_cc.display_name LIKE %{$count} OR non_uc_cc.display_name LIKE %{$count} ) )";
-            $count++;
+        if (!empty($denomination_name)) {
+          $params[$count] = array($denomination_name, 'Integer');
+          $clause[] = "((deno_cc.id = %{$count} OR non_uc_cc.id = %{$count}))";
+          $count++;
         }
 
         $city   = CRM_Utils_Array::value( 'city',
