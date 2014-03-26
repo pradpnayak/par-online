@@ -328,6 +328,15 @@ cj(document).ready(function(){
   }
   
 } );
+
+{/literal}    
+{if $hideActivatedField}
+{literal}
+  var divElement = '#editrow-{/literal}{$hideActivatedField}{literal}';	  
+  cj(divElement).hide();
+{/literal}    
+{/if}
+{literal}
 </script>
 {/literal}
 

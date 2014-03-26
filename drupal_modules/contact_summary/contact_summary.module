@@ -577,8 +577,7 @@ function contact_summary_civicrm_buildForm( $formName, &$form ) {
             $form->add( 'hidden', "supporter_id", $supporterId );
         }
         else {
-          $smarty = CRM_Core_Smarty::singleton();
-          unset($smarty->_tpl_vars['fields']['custom_48']);
+          $form->assign('hideActivatedField', 'custom_48');
         }
     }
 }
