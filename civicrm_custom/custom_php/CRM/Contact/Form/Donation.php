@@ -294,6 +294,11 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         // }
        
         $accountDetails = getAccountColumns();
+        $parAccountDetails = array(
+          'bank' => 'custom_11',
+          'branch' => 'custom_12',
+          'account' => 'custom_13',
+        );
         $bankDetails    = $accountDetails['fieldId'];
         $monerisParams = array();
         $contactParams = array( 'version' => 3,
@@ -416,9 +421,17 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
           $params[ 'net_amount' ]            = $params[ 'total_amount' ];
           foreach( $bankDetails as $bankKey => $bankValue ) {
             $params[$bankValue] = CRM_Utils_Array::value($bankKey, $fieldDetails);
+            if ($bankKey != 'type') {
+              $contactCustom[$parAccountDetails[$bankKey]] = CRM_Utils_Array::value($bankKey, $fieldDetails);
+            }
           }
           unset( $params[$bankDetails['type']] );
           $paymentProcessor->doDirectPayment( $params );
+          $contactCustom['version'] = 3;
+          $contactCustom['contact_id'] = $_GET['cid'];
+          $contactCustom['contact_type'] = 'Individual';
+          $aaa = civicrm_api('contact', 'create', $contactCustom);
+          CRM_Core_Error::debug_var( '$aaa', $aaa );
           $result = civicrm_api( 'contribution', 'create', $params );
           if ( array_key_exists( 'id', $result ) && $fieldDetails['pricesetid'] ) {
             require_once 'CRM/Contribute/Form/AdditionalInfo.php';
