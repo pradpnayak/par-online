@@ -651,7 +651,7 @@ INSERT INTO civicrm_phone (id, contact_id, location_type_id, is_primary, phone, 
         $ext_id =  'D-'.$rows[0];
         $extrnal_id = $rows[0];
       }
-      $idact = CRM_Core_DAO::singleValueQuery("SELECT c.id FROM civicrm_contact c LEFT JOIN civicrm_value_is_online_17 o ON o.entity_id = c.id WHERE o.activated__48 = 1 AND c.external_identifier = '{$ext_id}'");
+      $idact = CRM_Core_DAO::singleValueQuery("SELECT c.id FROM civicrm_contact c INNER JOIN civicrm_value_is_online_17 o ON o.entity_id = c.id WHERE o.activated__48 = 1 AND c.external_identifier = '{$ext_id}'");
       if ($idact) {
         continue;
       }
@@ -1192,7 +1192,7 @@ INSERT INTO civicrm_phone (id, contact_id, location_type_id, is_primary, phone, 
       }
       
       $totalAmount = $donor_other_amount + $donor_cong_amount + $donor_ms_amount;
-      $updateRecurTable = "\n SELECT @recurId := id FROM civicrm_contribution_recur WHERE contact_id = @contactId AND contribution_status_id = 5; Insert into civicrm_contribution_recur (id, contact_id, amount, currency, frequency_unit, frequency_interval, start_date, create_date, contribution_status_id, payment_instrument_id) values (@recurId, @contactId, '{$total_amount}', 'CAD','month', '1', now(), now(), 5, 6) ON DUPLICATE KEY UPDATE amount = '{$total_amount}'; SELECT @recurId := id FROM civicrm_contribution_recur WHERE contact_id = @contactId AND contribution_status_id = 5;\n";
+      $updateRecurTable = "\n SET @recurId := '';\n SET @recurStatus := '';\n SELECT @recurId := id, @recurStatus := contribution_status_id FROM civicrm_contribution_recur WHERE contact_id = @contactId AND contribution_status_id IN(5, 7); Insert into civicrm_contribution_recur (id, contact_id, amount, currency, frequency_unit, frequency_interval, start_date, create_date, contribution_status_id, payment_instrument_id) values (@recurId, @contactId, '{$total_amount}', 'CAD','month', '1', now(), now(), 5, 6) ON DUPLICATE KEY UPDATE amount = '{$total_amount}'; SELECT @recurId := id FROM civicrm_contribution_recur WHERE contact_id = @contactId AND contribution_status_id = 5;\n";
       
       $updateRecurTable .= " Insert into civicrm_line_item (entity_table, entity_id, price_field_id, label, qty, unit_price, line_total, price_field_value_id)
 Select  'civicrm_contribution_recur', @recurId, cpf.id, cct.name,  CAST(
@@ -1212,6 +1212,11 @@ CASE WHEN cct.name LIKE 'General' THEN '{$donor_cong_amount}'
 WHEN cct.name LIKE 'M&S' THEN '{$donor_ms_amount}'
 WHEN cct.name LIKE 'Other' THEN '{$donor_other_amount}'
 END !=0 
+AND 
+CASE WHEN @recurStatus = 7
+   THEN 0
+ ELSE 1
+END
 ON DUPLICATE KEY UPDATE line_total = CASE WHEN cct.name LIKE 'General' THEN '{$donor_cong_amount}'
 WHEN cct.name LIKE 'M&S' THEN '{$donor_ms_amount}'
 WHEN cct.name LIKE 'Other' THEN '{$donor_other_amount}'
@@ -1701,8 +1706,11 @@ INNER JOIN civicrm_contact cc ON cc.id = ccr.contact_id WHERE contribution_statu
         $contact_id = "SELECT @contactId := id FROM civicrm_contact where external_identifier ='{$ext_id}';\n";
         
         $setContrNULL = "SET @contrId := '';\n";
-        $contrId = "SELECT @contrId := id FROM civicrm_contribution WHERE contact_id = @contactId AND contribution_status_id = {$contributionStatus} AND total_amount = '{$total_amount}' AND receive_date = '{$start_date}' ;\n";
-
+        $contrId = "SELECT @contrId := id FROM civicrm_contribution WHERE contact_id = @contactId AND contribution_status_id = {$contributionStatus} AND total_amount = '{$total_amount}' AND receive_date = '{$start_date}'";
+        if ($recurID) {
+          $contrId .= " AND contribution_recur_id = {$recurID}";          
+        }
+        $contrId .= ';\n';
         if( $rows[9] !='Contributors') {
           $contrib ="Insert into civicrm_contribution (id, contact_id, contribution_type_id, receive_date, payment_instrument_id, total_amount, fee_amount, net_amount, amount_level, contribution_recur_id, contribution_status_id) values(@contrId, @contactId, {$ContTypeID}, '{$start_date}', 6, '{$total_amount}', '{$fee_amount}', '{$total_amount}', '{$amount_level}', {$recurID}, {$contributionStatus} ) ON DUPLICATE KEY UPDATE id = @contrId;\n"; 
         } else {
@@ -1926,6 +1934,12 @@ AND cd.bank_number_11 = '{$bank_number}'";
         }
       }
     }
+    
+    $sql = 'UPDATE civicrm_log_par_donor clpd
+INNER JOIN civicrm_contribution_recur cr ON cr.contact_id =clpd.primary_contact_id
+SET contribution_status_id = 7
+WHERE contribution_status_id = 5 and removed = 1;\n';
+    fwrite($write, $sql);
     fclose($read);
     fclose($write);
     fclose($notwrite);
