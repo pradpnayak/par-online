@@ -44,23 +44,23 @@ implements CRM_Contact_Form_Search_Interface {
         parent::__construct( $formValues );
             
         
-        $this->_columns = array( ts('Charge Name')         => 'pc_name',
-                                 ts('Congregation')        => 'pc_cong_name',
+        $this->_columns = array( ts('Charge Name') => 'pc_name',
+                                 ts('Charge Number') => 'ms_number',
                                  ts('Local Admin Name(s)') => 'admin_name',
-                                 ts('Denomination')        => 'deno_name',
-                                 ts('Conference')          => 'conf_name',
-                                 ts('City/Town')           => 'city',
+                                 ts('Denomination') => 'deno_name',
+                                 ts('Conference') => 'conf_name',
+                                 ts('City/Town') => 'city',
                                  ) ;  
     }
 
     function buildForm( &$form ) {
         $form->add( 'text',
                     'display_name',
-                    ts( 'Charge Name' ),
+                    ts('Par Charge Name'),
                     true );
         $form->add( 'text',
-                    'sort_name',
-                    ts( 'Congregation' ),
+                    'ms_number',
+                    ts('Charge Number'),
                     true );
         $form->add( 'text',
                     'first_name',
@@ -90,7 +90,7 @@ implements CRM_Contact_Form_Search_Interface {
          * if you are using the standard template, this array tells the template what elements
          * are part of the search criteria
          */
-        $form->assign( 'elements', array( 'display_name', 'sort_name', 'first_name', 'last_name', 'organization_name', 'city' ) );
+        $form->assign( 'elements', array( 'display_name', 'ms_number', 'first_name', 'last_name', 'organization_name', 'city' ) );
         $task =& CRM_Contact_Task::$_tasks;
         unset($task[8]);
     }
@@ -103,32 +103,22 @@ implements CRM_Contact_Form_Search_Interface {
         if (CRM_Utils_Array::value('organization_name', $this->_formValues)) {
           $pastoralCharge = 'pc_id';
           $adminContact = 'admin_id';
-          $congretionContact = 'cong_id';
           $denomination = 'contact_id';
         }
         elseif (CRM_Utils_Array::value('display_name', $this->_formValues)) {
           $pastoralCharge = 'contact_id';
           $adminContact = 'admin_id';
-          $congretionContact = 'cong_id';
-          $denomination = 'deno_id';
-        }
-        elseif (CRM_Utils_Array::value('sort_name', $this->_formValues)) {
-          $pastoralCharge = 'pc_id';
-          $adminContact = 'admin_id';
-          $congretionContact = 'contact_id';
           $denomination = 'deno_id';
         }
         elseif (CRM_Utils_Array::value('first_name', $this->_formValues) ||
           CRM_Utils_Array::value('last_name', $this->_formValues) ) {
           $pastoralCharge = 'pc_id';
           $adminContact = 'contact_id';
-          $congretionContact = 'cong_id';
           $denomination = 'deno_id';
         }
         else {
           $pastoralCharge = 'contact_id';
           $adminContact = 'admin_id';
-          $congretionContact = 'cong_id';
           $denomination = 'deno_id';
         }
 
@@ -136,15 +126,15 @@ implements CRM_Contact_Form_Search_Interface {
         $selectClause = "
 DISTINCT(contact_a.id) as {$pastoralCharge}, 
 admin_cc.id as {$adminContact},
-pc_cong_rel.contact_id_a as {$congretionContact},
 deno_rel.contact_id_b as {$denomination},
 
 conf_rel.contact_id_b as conf_id,contact_a.display_name as pc_name, city.city as city, 
 contact_a.contact_sub_type as contact_sub_type, 
-admin_cc.display_name as admin_name, pc_cong_cc.display_name as pc_cong_name,
+admin_cc.display_name as admin_name, 
 pres_rel.contact_id_b as pres_id, pres_cc.display_name as pres_name, 
 conf_cc.display_name as conf_name, deno_cc.display_name as deno_name,
-non_uc_rel.contact_id_b as non_uc_id, non_uc_cc.display_name as non_uc_name
+non_uc_rel.contact_id_b as non_uc_id, non_uc_cc.display_name as non_uc_name,
+ms_number.ms_number_16 ms_number
 ";
 
         return $this->sql( $selectClause,
@@ -158,17 +148,24 @@ non_uc_rel.contact_id_b as non_uc_id, non_uc_cc.display_name as non_uc_name
 
         return "FROM civicrm_contact AS contact_a {$this->_aclFrom}
 
-LEFT JOIN civicrm_relationship AS pc_cong_rel ON ( contact_a.id = pc_cong_rel.contact_id_b AND pc_cong_rel.relationship_type_id = ".IS_PART_OF_RELATION_TYPE_ID." )
+LEFT JOIN civicrm_relationship AS pc_cong_rel ON ( contact_a.id = 
+CASE 
+  WHEN  contact_a.contact_sub_type = 'Pastoral_Charge'
+    THEN pc_cong_rel.contact_id_b 
+  ELSE
+    pc_cong_rel.contact_id_a
+END
+AND pc_cong_rel.relationship_type_id = ".IS_PART_OF_RELATION_TYPE_ID." )
 
-LEFT JOIN civicrm_contact AS pc_cong_cc ON ( pc_cong_cc.id = pc_cong_rel.contact_id_a)
+LEFT JOIN civicrm_contact AS pc_cong_cc ON ( pc_cong_cc.id = pc_cong_rel.contact_id_b)
 
-LEFT JOIN civicrm_address  AS city         ON ( city.contact_id = contact_a.id AND city.is_primary = 1 )
+LEFT JOIN civicrm_address  AS city         ON ( city.contact_id = pc_cong_cc.id AND city.is_primary = 1 )
 
-LEFT JOIN civicrm_relationship AS admin_rel ON (  admin_rel.relationship_type_id = ".PAR_ADMIN_RELATION_TYPE_ID." AND contact_a.id = admin_rel.contact_id_b )
+LEFT JOIN civicrm_relationship AS admin_rel ON (  admin_rel.relationship_type_id = ".PAR_ADMIN_RELATION_TYPE_ID." AND pc_cong_cc.id = admin_rel.contact_id_b )
 
 LEFT JOIN civicrm_contact AS admin_cc ON ( admin_cc.id = admin_rel.contact_id_a AND admin_rel.relationship_type_id = ".PAR_ADMIN_RELATION_TYPE_ID." )
 
-LEFT JOIN civicrm_relationship AS pres_rel ON ( contact_a.id = pres_rel.contact_id_a AND pres_rel.relationship_type_id = ".IS_PART_OF_RELATION_TYPE_ID." )
+LEFT JOIN civicrm_relationship AS pres_rel ON ( pc_cong_cc.id = pres_rel.contact_id_a AND pres_rel.relationship_type_id = ".IS_PART_OF_RELATION_TYPE_ID." )
 LEFT JOIN civicrm_contact AS pres_cc ON ( pres_cc.id = pres_rel.contact_id_b AND pres_cc.contact_sub_type = 'Presbytery')
 
 LEFT JOIN civicrm_relationship AS conf_rel ON ( conf_rel.contact_id_a = pres_rel.contact_id_b AND conf_rel.relationship_type_id = ".IS_PART_OF_RELATION_TYPE_ID." )
@@ -177,8 +174,9 @@ LEFT JOIN civicrm_contact AS conf_cc ON ( conf_cc.id = conf_rel.contact_id_b AND
 LEFT JOIN civicrm_relationship AS deno_rel ON ( deno_rel.contact_id_a = conf_rel.contact_id_b AND deno_rel.relationship_type_id = ".IS_PART_OF_RELATION_TYPE_ID." )
 LEFT JOIN civicrm_contact AS deno_cc ON ( deno_cc.id = deno_rel.contact_id_b AND deno_cc.contact_sub_type = 'Denomination')
 
-LEFT JOIN civicrm_relationship AS non_uc_rel ON ( contact_a.id = non_uc_rel.contact_id_a AND non_uc_rel.relationship_type_id = ".IS_PART_OF_RELATION_TYPE_ID." )
+LEFT JOIN civicrm_relationship AS non_uc_rel ON ( pc_cong_cc.id = non_uc_rel.contact_id_a AND non_uc_rel.relationship_type_id = ".IS_PART_OF_RELATION_TYPE_ID." )
 LEFT JOIN civicrm_contact AS non_uc_cc ON ( non_uc_cc.id = non_uc_rel.contact_id_b AND non_uc_cc.contact_sub_type = 'Denomination')
+LEFT JOIN civicrm_value_other_details_7 ms_number ON ms_number.entity_id = contact_a.id
 ";       
     }
     
@@ -237,18 +235,17 @@ LEFT JOIN civicrm_contact AS non_uc_cc ON ( non_uc_cc.id = non_uc_rel.contact_id
             $clause[] = "( city.city LIKE %{$count} AND city.city IS NOT NULL )";
             $count++;
         }
-
-        $congregation_name   = CRM_Utils_Array::value( 'sort_name',
-                                                       $this->_formValues );
-        if ( $congregation_name != null ) {
-            if ( strpos( $congregation_name, '%' ) === false ) {
-                $congregation_name = "%{$congregation_name}%";
+        
+        if (CRM_Utils_Array::value( 'ms_number', $this->_formValues)) {
+            if (strpos($this->_formValues['ms_number'], '%' ) === false) {
+                $city = "%{$this->_formValues['ms_number']}%";
             }
-            $params[$count] = array( $congregation_name, 'String' );
-            $clause[] = "pc_cong_cc.display_name LIKE %{$count} ";
+            $params[$count] = array($this->_formValues['ms_number'], 'String');
+            $clause[] = "(ms_number.ms_number_16 LIKE %{$count} )";
             $count++;
         }
-        $where  = "contact_a.contact_sub_type = 'Pastoral_Charge' ";
+        
+        $where  = "contact_a.contact_sub_type IN ('Pastoral_Charge', 'Congregation') ";
                
         if ( ! empty( $clause ) ) {
             $where .= ' AND ' . implode( ' AND ', $clause );
