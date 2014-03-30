@@ -34,6 +34,20 @@ function paronline_to_par_synch_civicrm_post( $op, $objectName, $objectId, &$obj
       }
     }
   }
+  // UCCPAR-448
+  if ($objectName == 'ContributionRecur') {
+    $params['primary_contact_id'] = $objectRef->contact_id;
+    if (empty($params['primary_contact_id'])) {
+      $params['primary_contact_id'] = CRM_Core_DAO::getFieldValue('CRM_Contribute_DAO_ContributionRecur', $objectRef->id, 'contact_id');
+    }
+    if ($objectRef->contribution_status_id == 7) {
+      $params['removed'] = TRUE;
+    }
+    else {
+      $params['removed'] = FALSE;
+    }
+    make_entry_in_par_log('Update', $params );
+  }
   
   if ( $objectName == 'Contribution' ) {
     $query = "SELECT external_identifier FROM civicrm_contact WHERE id = ".$objectRef->contact_id;
