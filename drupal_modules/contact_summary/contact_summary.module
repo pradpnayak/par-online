@@ -75,23 +75,16 @@ function contact_summary_user_login(&$edit, $account) {
     } 
     // UCCPAR - 434
      $congregations = findContactCongregation();
-     $relApiParams = array(
-       'version' => 3,
-       'sequential' =>1, 
-       'relationship_type_id' => SUPPORTER_RELATION_TYPE_ID,
-     );
      foreach($congregations as $key => $value) {
-       $relApiParams['contact_id_b'] = $key;
-       $supporters = civicrm_api('Relationship', 'get', $relApiParams);
-       foreach ($supporters['values'] as $index => $info) {
-         $customValueParams = array(
-           'version' => 3,
-           'custom_48' => 1,
-           'entity_id' => $info['contact_id_a'],
-           'entity_table' => 'civicrm_contact',
-         );
-         $customValue = civicrm_api('CustomValue', 'create', $customValueParams);
-       }
+       $sql = 'UPDATE civicrm_relationship cr
+INNER JOIN civicrm_value_is_online_17 online ON online.entity_id = cr.contact_id_a
+SET online.activated__48 = 1
+WHERE relationship_type_id =' . SUPPORTER_RELATION_TYPE_ID . " AND contact_id_b = {$key}";
+       CRM_Core_DAO::executeQuery($sql);
+       $sql = 'INSERT INTO civicrm_value_is_online_17(entity_id, activated__48) SELECT cr.contact_id_a, 1 FROM `civicrm_relationship`cr
+LEFT JOIN civicrm_value_is_online_17 online ON online.entity_id = cr.contact_id_a
+WHERE online.entity_id IS NULL AND relationship_type_id = ' . SUPPORTER_RELATION_TYPE_ID . " AND contact_id_b = {$key}";
+       CRM_Core_DAO::executeQuery($sql);
      }
   }
 
