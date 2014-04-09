@@ -722,7 +722,7 @@ AND a.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD
         $smarty->_tpl_vars['activityTypes']['donation'] = 'Add Donation';
         $smarty->_tpl_vars['urls']['donation'] = CRM_Utils_System::url('civicrm/contact/view',"reset=1&cid=".$_SESSION['CiviCRM']['view.id']."&selectedChild=donation&addNew=1");
         $daoObject = getLogDetails(array('nsf'), array('primary_contact_id = ' . $_SESSION['CiviCRM']['view.id']));
-        if (property_exists($daoObject, 'nsf') && !$daoObject->nsf) {
+        if (!$daoObject->N || (property_exists($daoObject, 'nsf') && !$daoObject->nsf)) {
           $smarty->_tpl_vars['activityTypes']['delete'] = 'Delete Contact';
           $smarty->_tpl_vars['urls']['delete'] =  CRM_Utils_System::url('civicrm/contact/delete/donor', "reset=1&cid=".$_SESSION['CiviCRM']['view.id']);
         }        
