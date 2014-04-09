@@ -94,3 +94,5 @@ define('BANKING_DETAILS_PROFILE_ID', 19);
 define('MAX_EXTERNAL_ID', 9000000);
 define('PAROnline2PAR_ACTIVITY_TYPE_ID', 45);
 define('SYSTEM_ADMIN', 9);
+define('MASTER_CARD', 903);
+define('VISA', 901);
