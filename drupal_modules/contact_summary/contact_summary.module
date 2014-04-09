@@ -74,18 +74,20 @@ function contact_summary_user_login(&$edit, $account) {
     
     } 
     // UCCPAR - 434
-     $congregations = findContactCongregation();
-     foreach($congregations as $key => $value) {
-       $sql = 'UPDATE civicrm_relationship cr
+    if (!in_array($result['values'][$result['id']]['contact_id'], $sysadmins)) {
+      $congregations = findContactCongregation();
+      foreach($congregations as $key => $value) {
+        $sql = 'UPDATE civicrm_relationship cr
 INNER JOIN civicrm_value_is_online_17 online ON online.entity_id = cr.contact_id_a
 SET online.activated__48 = 1
 WHERE relationship_type_id =' . SUPPORTER_RELATION_TYPE_ID . " AND contact_id_b = {$key}";
-       CRM_Core_DAO::executeQuery($sql);
-       $sql = 'INSERT INTO civicrm_value_is_online_17(entity_id, activated__48) SELECT cr.contact_id_a, 1 FROM `civicrm_relationship`cr
+        CRM_Core_DAO::executeQuery($sql);
+        $sql = 'INSERT INTO civicrm_value_is_online_17(entity_id, activated__48) SELECT cr.contact_id_a, 1 FROM `civicrm_relationship`cr
 LEFT JOIN civicrm_value_is_online_17 online ON online.entity_id = cr.contact_id_a
 WHERE online.entity_id IS NULL AND relationship_type_id = ' . SUPPORTER_RELATION_TYPE_ID . " AND contact_id_b = {$key}";
-       CRM_Core_DAO::executeQuery($sql);
-     }
+        CRM_Core_DAO::executeQuery($sql);
+      }
+    }
   }
 
 function contact_summary_civicrm_searchTasks( $objectName, &$tasks ) {
