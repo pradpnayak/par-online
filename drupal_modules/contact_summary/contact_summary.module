@@ -698,13 +698,15 @@ AND a.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD
           $contact_sub_type = $contact_sub_type[0];
         }
         $isOnline = TRUE;
+        $isOrg = FALSE;
         if( $contact_type == 'Individual' ){
           $param = "reset=1&gid=".CONTACT_PROFILE_ID."&id={$_SESSION['CiviCRM']['view.id']}";
           if (in_array(CRM_Core_Session::singleton()->get('userID'), getSysAdmins())) {
             $isOnline = CRM_Core_DAO::singleValueQuery('SELECT activated__48 FROM civicrm_value_is_online_17 WHERE entity_id = ' . $_SESSION['CiviCRM']['view.id']);
           }
         } else {
-            if ( $contact_sub_type == 'Pastoral_Charge' ) { 
+          $isOrg = TRUE;
+          if ( $contact_sub_type == 'Pastoral_Charge' ) { 
                 $param = "reset=1&gid=".PC_PROFILE_ID."&id={$_SESSION['CiviCRM']['view.id']}";
             } else if ( $contact_sub_type == 'Denomination' ) { 
                 $param = "reset=1&gid=".DENOMINATION_PROFILE_ID."&id={$_SESSION['CiviCRM']['view.id']}";
@@ -722,7 +724,7 @@ AND a.relationship_type_id IN (" . HEAD_OF_HOUSEHOLD . "," . MEMBER_OF_HOUSEHOLD
         $smarty->_tpl_vars['activityTypes']['donation'] = 'Add Donation';
         $smarty->_tpl_vars['urls']['donation'] = CRM_Utils_System::url('civicrm/contact/view',"reset=1&cid=".$_SESSION['CiviCRM']['view.id']."&selectedChild=donation&addNew=1");
         $daoObject = getLogDetails(array('nsf'), array('primary_contact_id = ' . $_SESSION['CiviCRM']['view.id']));
-        if (!$daoObject->N || (property_exists($daoObject, 'nsf') && !$daoObject->nsf)) {
+        if (!$isOrg && !$daoObject->N || (property_exists($daoObject, 'nsf') && !$daoObject->nsf)) {
           $smarty->_tpl_vars['activityTypes']['delete'] = 'Delete Contact';
           $smarty->_tpl_vars['urls']['delete'] =  CRM_Utils_System::url('civicrm/contact/delete/donor', "reset=1&cid=".$_SESSION['CiviCRM']['view.id']);
         }        
