@@ -136,11 +136,9 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
     function setDefaultValues( ) {
         require_once 'CRM/Price/BAO/Set.php';
         require_once 'CRM/Price/DAO/LineItem.php';
-        $default               = array();
-        $paymentInstrument     = array( 'Direct Debit', 'Credit Card' );
-        $paymentInstrument     = array_flip( $paymentInstrument );
-        $cid                   = CRM_Utils_Request::retrieve( 'cid', 'Positive', $this, false );
-        $ccType                = CRM_Core_OptionGroup::values( 'accept_creditcard' );
+        $default = array();
+        $cid = CRM_Utils_Request::retrieve( 'cid', 'Positive', $this, false );
+        $ccType = CRM_Core_OptionGroup::values( 'accept_creditcard' );
         $paymentStatus         = $this->getAvailablePaymentStatus();
         $flipCCType            = array_flip( $ccType );
         $accountDetails        = getAccountColumns();
@@ -150,16 +148,16 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         $default['contribution_id']   = $this->get('contributionId');
         $query = 'SELECT * FROM civicrm_value_par_account_details_6 WHERE entity_id = ' . $cid;
         $dao = CRM_Core_DAO::executeQuery($query);
-        if ($dao->fetch()) {
+        if ($dao->fetch() && !in_array($dao->bank_number_11, array(VISA, MASTER_CARD))) {
             $default['bank'] = $dao->bank_number_11;
             $default['branch'] = $dao->branch_number_12;
             $default['account'] = $dao->par_account_number_13;
         }
         foreach( $this->_recurringDetails as $recurKey => $recurValue ){
-            $default[ 'payment_instrument' ] = $paymentInstrument[ $recurValue[ 'installment' ][0][ 'payment_instrument' ] ];
-            $default[ 'payment_status' ]     = $recurValue[ 'contribution_status_id' ];
-            $default[ 'old_status' ]         = $recurValue[ 'contribution_status_id' ];
-            $default[ 'cc_type' ]            = $recurValue[ 'installment' ][0][ $bankDetails[ 'type' ] ];
+            $default['payment_instrument'] = $recurValue['payment_instrument_id'];
+            $default['payment_status'] = $recurValue[ 'contribution_status_id' ];
+            $default['old_status'] = $recurValue[ 'contribution_status_id' ];
+            $default['cc_type'] = $recurValue['installment'][0][$bankDetails['type']];
             break;
         }
         $contributions = $this->getRecurringContribution( $cid, true );
@@ -430,8 +428,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
           $contactCustom['version'] = 3;
           $contactCustom['contact_id'] = $_GET['cid'];
           $contactCustom['contact_type'] = 'Individual';
-          $aaa = civicrm_api('contact', 'create', $contactCustom);
-          CRM_Core_Error::debug_var( '$aaa', $aaa );
+          civicrm_api('contact', 'create', $contactCustom);
           $result = civicrm_api( 'contribution', 'create', $params );
           if ( array_key_exists( 'id', $result ) && $fieldDetails['pricesetid'] ) {
             require_once 'CRM/Contribute/Form/AdditionalInfo.php';
@@ -442,7 +439,22 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
             }
           }
         } elseif ( $fieldDetails[ 'payment_instrument' ] == 1 ) {
-          $params[$bankDetails['type']] = $ccType[ $fieldDetails['cc_type'] ];
+          if ($fieldDetails['cc_type'] == 1) {
+            $bankIDValue =  VISA;
+          }
+          else {
+            $bankIDValue = MASTER_CARD;
+          }
+          foreach( $bankDetails as $bankKey => $bankValue ) {
+            $params[$bankValue] = $bankIDValue;
+            if ($bankKey != 'type') {
+              $contactCustom[$parAccountDetails[$bankKey]] = $bankIDValue;
+            }
+          }
+          $contactCustom['version'] = 3;
+          $contactCustom['contact_id'] = $_GET['cid'];
+          $contactCustom['contact_type'] = 'Individual';
+          civicrm_api('contact', 'create', $contactCustom);
           $params[ 'fee_amount' ]       = CRM_Utils_Money::format($params[ 'total_amount' ] * CC_FEES / 100, null, '%a' );
           $params[ 'net_amount' ]       = CRM_Utils_Money::format($params[ 'total_amount' ] - $params[ 'fee_amount' ], null, '%a' );
           $params[ 'source' ]           = 'Moneris';

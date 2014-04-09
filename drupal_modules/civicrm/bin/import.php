@@ -1192,7 +1192,13 @@ INSERT INTO civicrm_phone (id, contact_id, location_type_id, is_primary, phone, 
       }
       
       $totalAmount = $donor_other_amount + $donor_cong_amount + $donor_ms_amount;
-      $updateRecurTable = "\n SET @recurId := '';\n SET @recurStatus := '';\n SELECT @recurId := id, @recurStatus := contribution_status_id FROM civicrm_contribution_recur WHERE contact_id = @contactId AND contribution_status_id IN(5, 7); Insert into civicrm_contribution_recur (id, contact_id, amount, currency, frequency_unit, frequency_interval, start_date, create_date, contribution_status_id, payment_instrument_id) values (@recurId, @contactId, '{$total_amount}', 'CAD','month', '1', now(), now(), 5, 6) ON DUPLICATE KEY UPDATE amount = '{$total_amount}'; SELECT @recurId := id FROM civicrm_contribution_recur WHERE contact_id = @contactId AND contribution_status_id = 5;\n";
+      if (in_array($bank_id, array(VISA, MASTER_CARD))) {
+        $paymentInstrument = 1;
+      }
+      else {
+        $paymentInstrument = 6;
+      }
+      $updateRecurTable = "\n SET @recurId := '';\n SET @recurStatus := '';\n SELECT @recurId := id, @recurStatus := contribution_status_id FROM civicrm_contribution_recur WHERE contact_id = @contactId AND contribution_status_id IN(5, 7); Insert into civicrm_contribution_recur (id, contact_id, amount, currency, frequency_unit, frequency_interval, start_date, create_date, contribution_status_id, payment_instrument_id) values (@recurId, @contactId, '{$total_amount}', 'CAD','month', '1', now(), now(), 5, {$paymentInstrument}) ON DUPLICATE KEY UPDATE amount = '{$total_amount}'; SELECT @recurId := id FROM civicrm_contribution_recur WHERE contact_id = @contactId AND contribution_status_id = 5;\n";
       
       $updateRecurTable .= " Insert into civicrm_line_item (entity_table, entity_id, price_field_id, label, qty, unit_price, line_total, price_field_value_id)
 Select  'civicrm_contribution_recur', @recurId, cpf.id, cct.name,  CAST(
@@ -1710,11 +1716,18 @@ INNER JOIN civicrm_contact cc ON cc.id = ccr.contact_id WHERE contribution_statu
         if ($recurID) {
           $contrId .= " AND contribution_recur_id = {$recurID}";          
         }
+        if (in_array($bank_id, array(VISA, MASTER_CARD))) {
+          $paymentInstrument = 1;
+        }
+        else {
+          $paymentInstrument = 6;
+        }
+        
         $contrId .= ';\n';
         if( $rows[9] !='Contributors') {
-          $contrib ="Insert into civicrm_contribution (id, contact_id, contribution_type_id, receive_date, payment_instrument_id, total_amount, fee_amount, net_amount, amount_level, contribution_recur_id, contribution_status_id) values(@contrId, @contactId, {$ContTypeID}, '{$start_date}', 6, '{$total_amount}', '{$fee_amount}', '{$total_amount}', '{$amount_level}', {$recurID}, {$contributionStatus} ) ON DUPLICATE KEY UPDATE id = @contrId;\n"; 
+          $contrib ="Insert into civicrm_contribution (id, contact_id, contribution_type_id, receive_date, payment_instrument_id, total_amount, fee_amount, net_amount, amount_level, contribution_recur_id, contribution_status_id) values(@contrId, @contactId, {$ContTypeID}, '{$start_date}', {$paymentInstrument}, '{$total_amount}', '{$fee_amount}', '{$total_amount}', '{$amount_level}', {$recurID}, {$contributionStatus} ) ON DUPLICATE KEY UPDATE id = @contrId;\n"; 
         } else {
-          $contrib ="Insert into civicrm_contribution (id,contact_id, contribution_type_id, receive_date, payment_instrument_id, total_amount, net_amount, amount_level, contribution_recur_id, contribution_status_id) values(@contrId, @contactId, {$ContTypeID}, '{$start_date}', 6, '{$total_amount}',  '{$total_amount}', '{$amount_level}', {$recurID}, {$contributionStatus} ) ON DUPLICATE KEY UPDATE id = @contrId;\n"; 
+          $contrib ="Insert into civicrm_contribution (id,contact_id, contribution_type_id, receive_date, payment_instrument_id, total_amount, net_amount, amount_level, contribution_recur_id, contribution_status_id) values(@contrId, @contactId, {$ContTypeID}, '{$start_date}', {$paymentInstrument}, '{$total_amount}',  '{$total_amount}', '{$amount_level}', {$recurID}, {$contributionStatus} ) ON DUPLICATE KEY UPDATE id = @contrId;\n"; 
 
         }
         //$setContrNULL = "SET @contrId := '';\n";
