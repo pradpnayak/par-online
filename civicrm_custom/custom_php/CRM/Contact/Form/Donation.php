@@ -120,7 +120,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         $this->add( 'text', "cavv", null, array( 'class' => 'cavv' ) );
         $this->add( 'hidden', "pricesetid", null, array( 'id' => "pricesetid" ) );
         CRM_Price_BAO_Set::buildPriceSet( $this );
-        if ($daoObject->nsf) {
+        if ($daoObject->nsf && !$isAdmin) {
           foreach ($this->_elementIndex as $key => $keyID) {
             if (substr($key, 0, 6) == 'price_') {
               $this->_elements[$keyID]->_attributes['readonly'] = TRUE;
