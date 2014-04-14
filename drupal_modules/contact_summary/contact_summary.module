@@ -1198,10 +1198,7 @@ function contact_summary_civicrm_enableDisable( $baoName, $id, $isActive ) {
 }
 
 function contact_summary_civicrm_postProcess( $formName, &$form ){
-    if( $formName == 'CRM_Profile_Form_Edit' && ( $form->getVar( "_gid" ) == ORGANIZATION_PROFILE_ID || $form->getVar( '_gid' ) == DENOMINATION_PROFILE_ID || $form->getVar( '_gid' ) == PC_PROFILE_ID || $form->getVar( '_gid' ) == CO_PROFILE_ID ) ) {
-        $session = CRM_Core_Session::singleton();
-        $session->pushUserContext( CRM_Utils_System::url( 'civicrm/contact/view/orginfo', 'reset=1&gid='.$form->getVar( "_gid" ).'&id='.$form->getVar( "_id" )) );
-    } else if( $formName == 'CRM_Profile_Form_Edit' && $form->getVar( "_gid" ) == CONTACT_PROFILE_ID ){
+  if( $formName == 'CRM_Profile_Form_Edit' && $form->getVar( "_gid" ) == CONTACT_PROFILE_ID ){
       $supporter_id = CRM_Utils_Array::value( 'supporter_id', $form->_submitValues );
       $supporter    = CRM_Utils_Array::value( 'supporter', $form->_submitValues );
       if( !$supporter_id && CRM_Utils_Array::value( 'custom_47', $form->_submitValues )) {
