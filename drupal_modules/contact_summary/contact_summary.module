@@ -315,10 +315,16 @@ function contact_summary_civicrm_dashboard( $contactID, &$contentPlacement  ) {
 }
 
 function contact_summary_civicrm_tabs( &$tabs, $contactID ) {
-    if( !CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], DENOMINATION_ADMIN_GROUP_ID ) && !CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], 1 ) ){
+  foreach($tabs as $tabKey => $tabValue) {
+    if ($tabValue[ 'id' ] == 'log') {
+      $tabs[$tabKey]['title'] = ts('Contact Change Log');
+      break;
+    }
+  }
+  if( !CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], DENOMINATION_ADMIN_GROUP_ID ) && !CRM_Contact_BAO_GroupContact::isContactInGroup( $_SESSION[ 'CiviCRM' ][ 'userID' ], 1 ) ){
         foreach( $tabs as $tabKey => $tabValue ){
             if( $tabValue[ 'id' ] == 'rel' ) {
-                unset( $tabs[ $tabKey ] );
+              unset( $tabs[ $tabKey ] );
             }
         }
     }
@@ -513,6 +519,41 @@ function contact_summary_civicrm_buildForm( $formName, &$form ) {
 }
 
 function contact_summary_civicrm_pageRun( &$page ) { 
+  if ($page->getVar('_name') == 'CRM_Contact_Page_View_CustomData' && $page->_groupId == 18) {
+    $data =& CRM_Core_Smarty::singleton()->get_template_vars('viewCustomData');
+    rsort($data[18]);
+    $columns = array(
+      'Changed By',
+      'Change Date',
+      'Status',
+      'Payment Instrument',
+      'Bank #',
+      'Branch #',
+      'Account #',
+      'General',
+      'M&S',
+      'Other',
+      'Total',
+    );
+    $rows = array();
+    foreach ($data[18] as $values) {
+      if (!array_key_exists('field_value', $values['fields'][49])) {
+        continue;
+      }
+      $row = array($values['fields'][49]['field_value'], $values['fields'][50]['field_value']);
+      $serializeData = unserialize($values['fields'][49]['field_value']);
+      foreach($columns as $column) {
+        if (!in_array($column, array('Changed By', 'Change Date'))) {
+          $row[] = CRM_Utils_Array::value($column, $serializeData, '');
+        }
+      }
+      $row['contact_ref_id'] = $values['fields'][49]['contact_ref_id'];
+      $rows[] = $row;
+    }
+    $page->assign('rows', $rows);
+    $page->assign('columns', $columns);
+    $data = array();
+  }
     // SUPPORTER_GROUP_ID  DENOMINATION_ADMIN_GROUP_ID
     if( $page->getVar( '_name' ) == 'CRM_Contact_Page_View_Print' ) {
         if ( !empty ( $_GET['cid'] ) ) {
@@ -1198,7 +1239,7 @@ function contact_summary_civicrm_enableDisable( $baoName, $id, $isActive ) {
 }
 
 function contact_summary_civicrm_postProcess( $formName, &$form ){
-  if( $formName == 'CRM_Profile_Form_Edit' && $form->getVar( "_gid" ) == CONTACT_PROFILE_ID ){
+    if( $formName == 'CRM_Profile_Form_Edit' && $form->getVar( "_gid" ) == CONTACT_PROFILE_ID ){
       $supporter_id = CRM_Utils_Array::value( 'supporter_id', $form->_submitValues );
       $supporter    = CRM_Utils_Array::value( 'supporter', $form->_submitValues );
       if( !$supporter_id && CRM_Utils_Array::value( 'custom_47', $form->_submitValues )) {
