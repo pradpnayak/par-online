@@ -188,7 +188,21 @@ LEFT JOIN civicrm_log_par_donor log ON (log.primary_contact_id = contact_a.id)";
     }
 
     function templateFile( ) {
-        return 'CRM/Contact/Form/Search/Custom/LocalAdminUserSearch.tpl';
+      $rows =& CRM_Core_Smarty::singleton()->get_template_vars('rows');
+      $permissions = array(CRM_Core_Permission::getPermission());
+      $mask = CRM_Core_Action::mask($permissions);
+      require_once('CRM/Contact/Form/Search/Custom/UserSearch.php');
+      $links = CRM_Contact_Form_Search_Custom_UserSearch::links();
+      $links[CRM_Core_Action::UPDATE]['url'] = 'civicrm/profile/edit';
+      $links[CRM_Core_Action::UPDATE]['qs'] = 'reset=1&gid=13&id=%%id%%';
+      foreach ($rows as $key => $row) {
+        $rows[$key]['action'] = CRM_Core_Action::formLink( 
+          $links,
+          $mask ,
+          array( 'id' => $row['contact_id']) 
+        );
+      }
+      return 'CRM/Contact/Form/Search/Custom/LocalAdminUserSearch.tpl';
     }
 
     function setDefaultValues( ) {

@@ -199,16 +199,19 @@ LEFT JOIN civicrm_value_is_online_17 online ON online.entity_id = contact_a.id
       $rows =& CRM_Core_Smarty::singleton()->get_template_vars('rows');
       $permissions = array(CRM_Core_Permission::getPermission());
       $mask = CRM_Core_Action::mask($permissions);
+      $formlinks = self::links();
+      $formlinks[CRM_Core_Action::UPDATE]['url'] = 'civicrm/profile/edit';
+      $formlinks[CRM_Core_Action::UPDATE]['qs'] = 'reset=1&gid=13&id=%%id%%';
       foreach ($rows as $key => $row) {
-        $links = self::links();
+        $links = $formlinks;
         if (empty($row['activated__48'])) {
           unset($links[CRM_Core_Action::UPDATE]);
-          $rows[$key]['action'] = CRM_Core_Action::formLink( 
-            $links,
-            $mask ,
-            array( 'id' => $row['contact_id']) 
-          );
         }
+        $rows[$key]['action'] = CRM_Core_Action::formLink( 
+          $links,
+          $mask ,
+          array( 'id' => $row['contact_id']) 
+        );
         unset($row['activated__48']);
       }
       return 'CRM/Contact/Form/Search/Custom/UserSearch.tpl';
