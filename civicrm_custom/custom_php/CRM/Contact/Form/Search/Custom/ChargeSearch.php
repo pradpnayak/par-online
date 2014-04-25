@@ -290,7 +290,7 @@ LEFT JOIN civicrm_value_other_details_7 ms_number ON ms_number.entity_id = conta
       }
       foreach ($rows as $key => $row) {
         if (!$isFilter) {
-          $profileId = $orgProfile[$row['contact_sub_type']];
+          $profileId = $orgProfile[trim($row['contact_sub_type'],'')];
         }
         $rows[$key]['action'] = CRM_Core_Action::formLink( 
           $links,
