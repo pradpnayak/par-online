@@ -65,7 +65,14 @@
 	    <td width='130px'>{$form.$field.label}</td>
 	    <td>{$form.$field.html}</td>
 	</tr>
-    {/foreach}-->
+    {/foreach}--> 
+    <tr>
+      <td colspan = 2><h3>Supporting Documentation</h3></td>
+    </tr>
+    <tr> 
+      <td width='130px'>{$form.file_id.label}</td>
+      <td>{$form.file_id.html}</td>
+    </tr>
 </table>
     <div class="crm-submit-buttons"> 
          {include file="CRM/common/formButtons.tpl"}{if $isDuplicate}<span class="crm-button">{$form._qf_Edit_upload_duplicate.html}</span>{/if}
@@ -97,6 +104,10 @@ cj(document).ready(function(){
 
 cj('#dialog').hide();
 cj( '#_qf_Donation_save' ).click( function(){
+   if (cj('#file_id').val() === '') {
+     alert('File Number is required.');
+     return false;
+   }
    var parentID = {/literal}{if $householdExt neq ''}{$householdExt}{else}0{/if}{literal};
    if (parentID && cj('.payment_instrument').val() == 6) {
    var url = {/literal}"{crmURL p='civicrm/contact/view' h=0 q=reset=1}"{literal};
@@ -129,12 +140,12 @@ cj( '#_qf_Donation_save' ).click( function(){
 
 function prepareContributionParams(){
     var data = [];
-    
     data = 'payment_instrument='+cj('#payment_instrument').val()+'&';
     data = data+'payment_status='+cj('#payment_status').val()+'&';
     data = data+'frequency_unit='+cj('#frequency_unit').val()+'&';
     data = data+'old_status='+cj('#old_status').val()+'&';
     data = data+'pricesetid='+cj('#pricesetid').val()+'&';
+    data = data+'nsf='+cj('input[name=nsf]:checked').val()+'&';
     cj('#instrument-deatils td input').each( function(){
          var id = cj(this).attr('id');
 	 var value = cj(this).val( );

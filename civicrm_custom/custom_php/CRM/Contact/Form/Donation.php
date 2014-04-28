@@ -88,7 +88,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         $this->set('priceSetId', $priceSet[ 'id' ]);
         //Build bank details block
         $daoObject = getLogDetails(array('nsf', 'removed'), array('primary_contact_id = ' . $cid));
-        $extra = array('maxlength' => 1, 'class' => 'nsf', 'value'=> $daoObject->nsf);
+        $extra = array();
         $isAdmin = TRUE;
         if (!in_array(CRM_Core_Session::singleton()->get('userID'), getSysAdmins())) {
           $extra['disabled'] = 'disabled';
@@ -98,7 +98,9 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
           unset($contributionStatus[array_search('Stopped', $contributionStatus)]);
         }
         $this->add( 'select', "payment_status", null, $contributionStatus, null, array( 'class' => 'payment_status' ) );
-        $this->add('text', "nsf", null, $extra);
+        $choice[] = $this->createElement('radio', NULL, '1', ts('Yes'), 1, $extra);
+        $choice[] = $this->createElement('radio', NULL, '0', ts('No'), 0, $extra);
+        $this->addGroup($choice, 'nsf', 'NSF');
         $this->add( 'select', "frequency_unit", null, $frequencyUnits, null, array( 'class' => 'frequency_unit' ) );
         //$this->assign( 'contriStatus', $contributionStatus[$contributionDetails[ 'contribution_status_id' ]] );
         $this->add( 'select', "payment_instrument", null, $paymentInstrument, null, array( 'class' => 'payment_instrument' ) );
@@ -108,6 +110,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
         $this->add( 'text', "account", null, array( 'maxlength' => 12, 'class' => 'account' ) );
         $this->add( 'text', "cc_number", null, array( 'class' => 'cc_number' ) );
         $this->add( 'text', "contribution_id", null, array( 'class' => 'contribution_id' ) );
+        $this->add('text', 'file_id', ts('File Number'), NULL, TRUE);
         $this->add( 'text', "contribution_type", null, array( 'class' => 'contribution_type' ) );
         $this->add( 'hidden', "old_status", null, array( 'class' => 'old_status', 'id' => 'old_status' ) );
         $this->add( 'date', "cc_expire", null, array( 'addEmptyOption'    => 1, 
@@ -172,6 +175,8 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
                 $default[ 'price_'.$lineItem->price_field_id ] = $lineItem->qty;
             }
         }
+        $daoObject = getLogDetails(array('nsf', 'removed'), array('primary_contact_id = ' . $cid));
+        $default['nsf'] = $daoObject->nsf;
         return $default;
     }
     
@@ -400,6 +405,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
                         'invoice_id'             => $invoice,
                         'contribution_status_id' => 5,
                         'priceSetId'             => $fieldDetails['pricesetid'],
+                        'custom_32'             => $fieldDetails['nsf'],
                         'version'                => 3,
                          );
         foreach( $lineitem as $lineItemKey => $lineItemValue ){
@@ -474,6 +480,11 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
             }
           }
         }
+        $logParams = array(
+          'primary_contact_id' => $_GET['cid'], 
+          'nsf' => $postParams['nsf'],
+        );
+        make_entry_in_par_log('Update', $logParams);
         CRM_Core_Session::setStatus( 'Donations added successfully' );
     }
     
