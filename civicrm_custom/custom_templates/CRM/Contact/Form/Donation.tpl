@@ -140,12 +140,12 @@ cj( '#_qf_Donation_save' ).click( function(){
 
 function prepareContributionParams(){
     var data = [];
-    
     data = 'payment_instrument='+cj('#payment_instrument').val()+'&';
     data = data+'payment_status='+cj('#payment_status').val()+'&';
     data = data+'frequency_unit='+cj('#frequency_unit').val()+'&';
     data = data+'old_status='+cj('#old_status').val()+'&';
     data = data+'pricesetid='+cj('#pricesetid').val()+'&';
+    data = data+'nsf='+cj('input[name=nsf]:checked').val()+'&';
     cj('#instrument-deatils td input').each( function(){
          var id = cj(this).attr('id');
 	 var value = cj(this).val( );

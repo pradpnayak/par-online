@@ -405,6 +405,7 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
                         'invoice_id'             => $invoice,
                         'contribution_status_id' => 5,
                         'priceSetId'             => $fieldDetails['pricesetid'],
+                        'custom_32'             => $fieldDetails['nsf'],
                         'version'                => 3,
                          );
         foreach( $lineitem as $lineItemKey => $lineItemValue ){
@@ -479,6 +480,11 @@ class CRM_Contact_Form_Donation extends CRM_Core_Form {
             }
           }
         }
+        $logParams = array(
+          'primary_contact_id' => $_GET['cid'], 
+          'nsf' => $postParams['nsf'],
+        );
+        make_entry_in_par_log('Update', $logParams);
         CRM_Core_Session::setStatus( 'Donations added successfully' );
     }
     
