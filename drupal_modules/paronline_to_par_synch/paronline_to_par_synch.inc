@@ -1,6 +1,13 @@
 <?php
 
 function make_entry_in_par_log( $op, $params, $log_action = NULL ) {
+  if (!empty($params['primary_contact_id'])) {
+    $externalIdentifier = CRM_Core_DAO::getFieldValue('CRM_Contact_DAO_Contact', $params['primary_contact_id'], 'external_identifier');
+    $extra = explode("-", $externalIdentifier); 
+    if(isset($extra['2'])) {
+      return;
+    }
+  }
   if ( $op == 'Update' || $op == 'Delete' ) {
     if ( array_key_exists('external_identifier' , $params) ) {
       $where = "WHERE external_identifier = '".$params['external_identifier']."'";
@@ -36,4 +43,4 @@ function make_entry_in_par_log( $op, $params, $log_action = NULL ) {
   }
   
   $result = CRM_Core_DAO::singleValueQuery($query);
-  } 
+} 
