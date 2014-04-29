@@ -67,6 +67,9 @@ function paronline_to_par_synch_civicrm_post( $op, $objectName, $objectId, &$obj
     unset($line_items[$key]);
     
     $fundType = $amount = null;
+    $params['general_amount'] = 
+      $params['`m&s_amount`'] = 
+      $params['other_amount'] = '0.00';
     foreach( $line_items as $key => $val ) {
       $amountLevel = explode(" -", $val);
       $fundType = $amountLevel[0];
@@ -115,27 +118,30 @@ function paronline_to_par_synch_civicrm_post( $op, $objectName, $objectId, &$obj
     }
         
     $params['par_donor_name']  = ltrim( $params['par_donor_name'], ";" );
-    if( !empty( $objectRef->address ) ) {
-      if ( !empty( $objectRef->address[0]->street_address ) && $objectRef->address[0]->street_address != 'null' ) {
-        $params['street_address'] = $objectRef->address[0]->street_address;
+    
+    if (property_exists( $objectRef, 'address' ) && !empty($objectRef->address[0])) {
+      if ( property_exists( $objectRef->address[0],'street_address' ) ) {
+        $params['street_address'] = ($objectRef->address[0]->street_address && $objectRef->address[0]->street_address != 'null') ? $objectRef->address[0]->street_address : '';
       }
-      if ( !empty( $objectRef->address[0]->city ) && $objectRef->address[0]->city != 'null' ) {
-        $params['city'] = $objectRef->address[0]->city;
+      if ( property_exists( $objectRef->address[0],'city' ) ) {
+        $params['city'] = ($objectRef->address[0]->city && $objectRef->address[0]->city != 'null')  ? $objectRef->address[0]->city : '';
       }
-      if ( !empty( $objectRef->address[0]->postal_code) && $objectRef->address[0]->postal_code != 'null' ) {
-        $params['postal_code'] = $objectRef->address[0]->postal_code;
+      if ( property_exists( $objectRef->address[0], 'postal_code') ) {
+        $params['postal_code'] = ($objectRef->address[0]->postal_code && $objectRef->address[0]->postal_code != 'null') ? $objectRef->address[0]->postal_code : '';
       }
-      if ( !empty( $objectRef->address[0]->country) && $objectRef->address[0]->country != 'null' ) {
-        $query = "SELECT name FROM civicrm_country WHERE id = ".$objectRef->address[0]->country;
-        $country_name = CRM_Core_DAO::singleValueQuery($query);
+      if ( property_exists( $objectRef->address[0], 'country') ) {
+        $country_name = '';
+        if (!empty($objectRef->address[0]->country) && $objectRef->address[0]->country != 'null') {
+          $query = "SELECT name FROM civicrm_country WHERE id = ".$objectRef->address[0]->country;
+          $country_name = CRM_Core_DAO::singleValueQuery($query);
+        }
+        
         $params['country'] = $country_name;
       }
     }
-    if( !empty( $objectRef->email ) ) {
-      if ( !empty( $objectRef->email[0]->email) && $objectRef->email[0]->email != 'null' ) {
-        $params['email'] = $objectRef->email[0]->email;
-      }
-    }
+    if (property_exists( $objectRef, 'email' ) && !empty($objectRef->email[0])) {
+      $params['email'] = ($objectRef->email[0]->email && $objectRef->email[0]->email != 'null') ? $objectRef->email[0]->email : '';
+    } 
     if ( $op == 'edit' ) {
       make_entry_in_par_log('Update', $params );
     } else if ( $op == 'create' ) {
@@ -169,7 +175,7 @@ function paronline_to_par_synch_civicrm_custom( $op, $groupID, $entityID, &$para
       $external_identifier = CRM_Core_DAO::singleValueQuery($query);
       if ( !empty( $external_identifier) ) {
         $result = explode( '-',$external_identifier);
-        $details['external_identifier'] = $result[1];
+        $details['external_identifier'] = $result[1];        
       } 
       else {
         $details['external_identifier'] = updateContactExtIdentifier($entityID);
